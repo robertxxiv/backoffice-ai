@@ -1,0 +1,13 @@
+alembic==1.16.4
+beautifulsoup4==4.13.3
+fastapi==0.115.12
+httpx==0.28.1
+openai==2.29.0
+pgvector==0.4.2
+pydantic-settings==2.8.1
+pypdf==5.4.0
+psycopg[binary]==3.2.6
+python-multipart==0.0.20
+sqlalchemy==2.0.39
+tiktoken==0.9.0
+uvicorn==0.34.0
