@@ -38,8 +38,8 @@ Optional but useful:
 ## 3. Clone the Project
 
 ```bash
-git clone <your-repo-url> rag-system
-cd rag-system
+git clone <your-repo-url> backoffice-ai
+cd backoffice-ai
 ```
 
 If you are deploying from an already prepared directory, ensure these files exist:
@@ -524,7 +524,7 @@ Inspect:
 
 ```bash
 docker volume ls
-docker volume inspect rag-system_pgdata
+docker volume inspect backoffice-ai_pgdata
 ```
 
 ## 13. Backup Procedure

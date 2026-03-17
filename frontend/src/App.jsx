@@ -140,7 +140,7 @@ export default function App() {
     <div className="page">
       <header className="hero">
         <p className="eyebrow">First Beta</p>
-        <h1>RAG Decision Support Console</h1>
+        <h1>Backoffice AI</h1>
         <p className="subtitle">
           Ingest documents, index them, and query grounded answers with citations.
         </p>

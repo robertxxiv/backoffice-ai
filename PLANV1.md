@@ -1,4 +1,4 @@
-# RAG Decision Support System Plan V1
+# Backoffice AI Plan V1
 
 ## Architecture
 

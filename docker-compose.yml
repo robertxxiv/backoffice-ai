@@ -1,3 +1,5 @@
+name: backoffice-ai
+
 services:
   api:
     build:

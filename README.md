@@ -1,4 +1,4 @@
-# RAG System
+# Backoffice AI
 
 Production-oriented first beta of a modular RAG decision support system.
 
