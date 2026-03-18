@@ -235,6 +235,7 @@ def query_documents(
             embedding_provider=settings.embedding_provider,
             generation_provider=settings.generation_provider,
         ),
+        machine_output=generated.get("machine_output"),
     )
     session.add(
         QueryLog(

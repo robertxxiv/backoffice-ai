@@ -84,3 +84,4 @@ class QueryResponse(BaseModel):
     answer: str
     sources: list[QuerySource]
     trace: QueryTrace
+    machine_output: dict[str, Any] | None = None

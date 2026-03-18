@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import ReactMarkdown from "react-markdown";
 
 const apiUrl = resolveApiUrl();
 
@@ -16,6 +17,21 @@ const exampleQuestions = [
   "Which document mentions Hertz?",
 ];
 
+const retrievalPhases = [
+  {
+    label: "Searching indexed documents",
+    detail: "Scanning the catalog and narrowing to the most relevant chunks.",
+  },
+  {
+    label: "Ranking relevant evidence",
+    detail: "Comparing context quality before building the final response.",
+  },
+  {
+    label: "Composing grounded answer",
+    detail: "Formatting a concise answer with source-backed evidence.",
+  },
+];
+
 export default function App() {
   const [documents, setDocuments] = useState([]);
   const [jobs, setJobs] = useState([]);
@@ -28,10 +44,25 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [queryBusy, setQueryBusy] = useState(false);
+  const [loadingPhase, setLoadingPhase] = useState(0);
 
   useEffect(() => {
     void refreshDocuments();
   }, []);
+
+  useEffect(() => {
+    if (!queryBusy) {
+      setLoadingPhase(0);
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => {
+      setLoadingPhase((current) => (current + 1) % retrievalPhases.length);
+    }, 1100);
+
+    return () => window.clearInterval(timer);
+  }, [queryBusy]);
 
   async function refreshDocuments() {
     const response = await fetch(`${apiUrl}/documents`);
@@ -122,7 +153,9 @@ export default function App() {
   async function handleQuery(event) {
     event.preventDefault();
     setBusy(true);
+    setQueryBusy(true);
     setError("");
+    setQueryResult(null);
     try {
       const response = await fetch(`${apiUrl}/query`, {
         method: "POST",
@@ -141,6 +174,7 @@ export default function App() {
     } catch (caught) {
       setError(caught.message);
     } finally {
+      setQueryBusy(false);
       setBusy(false);
     }
   }
@@ -359,12 +393,20 @@ export default function App() {
             </div>
           ) : null}
 
-          {queryResult ? (
+          {queryBusy ? <QueryLoadingState activeIndex={loadingPhase} /> : null}
+
+          {queryResult && !queryBusy ? (
             <div className="result">
               <div className="result-block">
                 <p className="section-label">Answer</p>
-                <FormattedAnswer text={queryResult.answer} />
+                <MarkdownAnswer text={queryResult.answer} />
               </div>
+              {queryResult.machine_output ? (
+                <details className="machine-panel">
+                  <summary>Show structured data</summary>
+                  <pre>{JSON.stringify(queryResult.machine_output, null, 2)}</pre>
+                </details>
+              ) : null}
               <div className="result-block">
                 <p className="section-label">Sources</p>
               </div>
@@ -490,94 +532,63 @@ function firstString(...values) {
   return values.find((value) => typeof value === "string" && value) || "";
 }
 
-function FormattedAnswer({ text }) {
-  const blocks = buildAnswerBlocks(text);
-
+function QueryLoadingState({ activeIndex }) {
   return (
-    <div className="answer-body">
-      {blocks.map((block, index) => {
-        if (block.type === "list") {
-          return (
-            <ul key={`${block.type}-${index}`} className="answer-list">
-              {block.items.map((item, itemIndex) => (
-                <li key={`${index}-${itemIndex}`}>{renderAnswerInline(item)}</li>
-              ))}
-            </ul>
-          );
-        }
+    <div className="loading-panel" aria-live="polite" aria-busy="true">
+      <div className="loading-head">
+        <p className="section-label">Working</p>
+        <h3>Building your answer</h3>
+      </div>
+      <div className="loading-phase-list">
+        {retrievalPhases.map((phase, index) => {
+          const state = index < activeIndex ? "complete" : index === activeIndex ? "active" : "idle";
 
-        return (
-          <p key={`${block.type}-${index}`} className="answer-paragraph">
-            {renderAnswerInline(block.text)}
-          </p>
-        );
-      })}
+          return (
+            <article key={phase.label} className={`loading-phase phase-${state}`}>
+              <div className="phase-marker">
+                <span />
+              </div>
+              <div className="phase-copy">
+                <strong>{phase.label}</strong>
+                <p>{phase.detail}</p>
+                <div className="phase-skeletons" aria-hidden="true">
+                  <span className="skeleton-line short" />
+                  <span className="skeleton-line medium" />
+                  <span className="skeleton-line long" />
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-function buildAnswerBlocks(text) {
-  const normalized = normalizeAnswerText(text);
-  const parts = normalized
-    .split(/\n{2,}/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  return parts.map((part) => {
-    const lines = part
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
-    const bulletLines = lines
-      .filter((line) => line.startsWith("- "))
-      .map((line) => line.slice(2).trim());
-
-    if (bulletLines.length > 0 && bulletLines.length === lines.length) {
-      return { type: "list", items: bulletLines };
-    }
-
-    return { type: "paragraph", text: part };
-  });
+function MarkdownAnswer({ text }) {
+  return (
+    <div className="answer-markdown">
+      <ReactMarkdown components={markdownComponents}>{text}</ReactMarkdown>
+    </div>
+  );
 }
 
-function normalizeAnswerText(text) {
-  return text
-    .replace(/\r\n/g, "\n")
-    .replace(/:\s+-\s+/g, ":\n- ")
-    .replace(/\]\.\s+-\s+/g, "].\n- ")
-    .replace(/\]\s+-\s+/g, "]\n- ")
-    .replace(/\.\s+-\s+/g, ".\n- ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-function renderAnswerInline(text) {
-  const matches = text.matchAll(/\[([^[\]]+)\]/g);
-  const segments = [];
-  let lastIndex = 0;
-
-  for (const match of matches) {
-    const [fullMatch, citation] = match;
-    const start = match.index ?? 0;
-
-    if (start > lastIndex) {
-      segments.push(text.slice(lastIndex, start));
-    }
-
-    segments.push(
-      <span key={`${citation}-${start}`} className="citation-tag">
-        {citation}
-      </span>,
-    );
-    lastIndex = start + fullMatch.length;
-  }
-
-  if (lastIndex < text.length) {
-    segments.push(text.slice(lastIndex));
-  }
-
-  return segments.length > 0 ? segments : text;
-}
+const markdownComponents = {
+  h1: ({ children }) => <h1 className="markdown-h1">{children}</h1>,
+  h2: ({ children }) => <h2 className="markdown-h2">{children}</h2>,
+  h3: ({ children }) => <h3 className="markdown-h3">{children}</h3>,
+  p: ({ children }) => <p className="answer-paragraph">{children}</p>,
+  ul: ({ children }) => <ul className="answer-list">{children}</ul>,
+  li: ({ children }) => <li>{children}</li>,
+  code: ({ inline, children }) =>
+    inline ? (
+      <code className="inline-code">{children}</code>
+    ) : (
+      <code className="code-block">{children}</code>
+    ),
+  pre: ({ children }) => <pre className="markdown-pre">{children}</pre>,
+  strong: ({ children }) => <strong className="markdown-strong">{children}</strong>,
+};
 
 async function readError(response) {
   const payload = await response.json().catch(() => ({}));
