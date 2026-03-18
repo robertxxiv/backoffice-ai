@@ -72,6 +72,8 @@ OPENAI_API_KEY=
 OPENAI_BASE_URL=https://api.openai.com/v1
 EMBEDDING_MODEL=text-embedding-3-small
 GENERATION_MODEL=gpt-5-mini
+TRUSTED_HOSTS=["localhost","127.0.0.1","your-server-ip-or-hostname"]
+ENABLE_API_DOCS=false
 CORS_ORIGINS=["http://localhost:3000"]
 RUN_MIGRATIONS_ON_STARTUP=true
 ```
@@ -94,6 +96,8 @@ Important:
 - the API key stays server-side only
 - the frontend never needs the OpenAI key
 - change `POSTGRES_PASSWORD` before first deployment
+- set `TRUSTED_HOSTS` to the exact hostnames or LAN IPs users will use to access the API
+- API docs are disabled by default in this hardened setup; enable them only when needed
 
 ## 5. PostgreSQL Setup and Configuration
 

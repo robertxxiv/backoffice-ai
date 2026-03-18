@@ -101,6 +101,8 @@ Database notes:
 - PostgreSQL credentials are now environment-driven
 - the bundled `db` service is not published on host port `5432` by default
 - for admin access, use `docker compose exec db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"`
+- add your server hostname or LAN IP to `TRUSTED_HOSTS` before remote use
+- API docs are disabled by default; set `ENABLE_API_DOCS=true` temporarily if you need `/docs`
 
 ## Migrations
 
