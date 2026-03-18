@@ -122,6 +122,7 @@ Useful fields:
 - `embedding_count`
 - `is_index_stale`
 - `index_error`
+- `metadata_summary.category`
 
 ### Inspect one document
 
@@ -144,6 +145,12 @@ That means:
 - ingesting the same source again does not create a second independent document
 - if content changes, the existing record is updated and versioned
 - any old chunk or embedding state is invalidated automatically
+
+Metadata normalization policy:
+
+- `category` is the canonical content grouping field
+- if users upload documents with `domain` or `type` only, the backend also derives `category`
+- user-facing filters in the frontend are based on normalized metadata, not on raw key naming
 
 ## Indexing Policy
 
@@ -251,3 +258,16 @@ The system does not yet support:
 - per-document access control
 
 Treat the deployment as trusted-internal only until auth is added.
+
+## Current Query Output Model
+
+The current query response is split into two layers:
+
+- `answer`: Markdown for direct user display
+- `machine_output`: optional structured JSON for formatting-oriented flows, especially travel/activity catalog extraction
+
+For admins, this means:
+
+- the frontend is expected to render Markdown, not plain text
+- catalog questions may return richer structured data alongside the visible answer
+- source UUIDs remain internal and should not appear in the visible answer body

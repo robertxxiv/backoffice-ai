@@ -38,7 +38,14 @@ Use metadata whenever possible. Good metadata improves filtering and traceabilit
 Examples:
 
 - `{"country":"NO","domain":"quotes"}`
+- `{"type":"travel_catalog","language":"it"}`
 - `{"department":"sales","version":"2026-Q1"}`
+
+Metadata behavior:
+
+- the system uses `category` as the main grouping field
+- if you provide `domain` or `type`, the backend also derives `category`
+- the query UI `Category` dropdown updates automatically from ingested document metadata
 
 ## 2. Reindex the Document
 
@@ -65,19 +72,27 @@ Examples:
 - `What pricing rule applies in winter?`
 - `Which document mentions seasonal pricing?`
 
-Optional filter example:
+The main query UI is designed for non-technical users:
 
-```json
-{"country":"NO"}
-```
+- one main question field
+- `Category` dropdown
+- `Country` dropdown
+- optional `Advanced` section for retrieval breadth and raw JSON filters
+
+Examples:
+
+- choose `Category: Travel Catalog`
+- choose `Country: NO`
+- then ask `Quali attività posso fare ad Alta?`
 
 ## 4. Read the Result
 
 Each response includes:
 
-- `answer`
+- `answer` rendered as Markdown
 - `sources`
 - `trace`
+- optional structured data panel when available
 
 ### What to trust
 
@@ -88,6 +103,10 @@ Always review:
 - the cited sources
 - the excerpt text
 - the document context
+
+### During query execution
+
+While a query is running, the result area shows a staged loading panel instead of staying blank. This is expected and indicates that retrieval and answer generation are in progress.
 
 ## 5. Re-ingesting Updated Content
 

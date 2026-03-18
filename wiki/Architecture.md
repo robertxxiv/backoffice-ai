@@ -44,6 +44,7 @@ Responsible for:
 - detecting input type
 - extracting text
 - normalizing text
+- normalizing metadata for downstream filtering
 - upserting documents by source identity
 - resetting stale index state when content changes
 
@@ -99,6 +100,12 @@ Responsible for:
 - applying metadata filters
 - deduplicating repeated chunk results
 
+Metadata filter behavior:
+
+- canonical filter field: `category`
+- compatibility aliases: `domain`, `type`
+- `country` remains a direct filter when present
+
 Runtime modes:
 
 - `pgvector`: PostgreSQL cosine-distance query
@@ -110,7 +117,15 @@ Responsible for:
 
 - building a grounded context window
 - generating an answer
+- selecting a response formatting mode
+- returning human-readable Markdown
+- optionally returning structured `machine_output`
 - returning citation identifiers tied to retrieved chunks
+
+Current response modes:
+
+- `standard`: generic grounded answer formatting
+- `activity_catalog`: stricter formatting for travel and activity catalog questions
 
 Supported providers:
 
@@ -175,6 +190,12 @@ When the same source is re-ingested:
 
 - unchanged content: no-op, same document version
 - changed content: same document record, version incremented, chunks and embeddings cleared, document marked stale
+
+Metadata normalization on ingest:
+
+- if metadata contains `category`, it is preserved
+- if metadata contains only `domain` or `type`, the system also derives `category`
+- normalized metadata is returned in document summaries and query sources
 
 ### Index lifecycle
 

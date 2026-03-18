@@ -71,13 +71,20 @@ Example:
   "lifecycle_action": "created",
   "content_length": 123,
   "metadata_summary": {
-    "country": "NO"
+    "country": "NO",
+    "category": "quotes"
   },
   "last_ingested_at": "2026-03-17T00:00:00Z",
   "last_indexed_at": null,
   "is_index_stale": true
 }
 ```
+
+Metadata notes:
+
+- `category` is the canonical filter/display field
+- if you upload `domain` or `type`, the backend also derives `category`
+- original metadata keys are preserved
 
 ## `GET /documents`
 
@@ -177,11 +184,17 @@ Runs the retrieval and generation pipeline.
 }
 ```
 
+Filtering notes:
+
+- use `category` as the preferred content grouping filter
+- `country` remains supported directly
+- `domain` and `type` metadata are normalized into `category` for compatibility
+
 ### Response
 
 ```json
 {
-  "answer": "Based on the indexed context: ...",
+  "answer": "## Answer\n\n- Norwegian VAT for consulting is 25 percent.",
   "sources": [
     {
       "document": "pricing-rules",
@@ -189,7 +202,9 @@ Runs the retrieval and generation pipeline.
       "score": 0.74,
       "excerpt": "Norwegian VAT for consulting is 25 percent...",
       "metadata": {
-        "country": "NO"
+        "country": "NO",
+        "domain": "quotes",
+        "category": "quotes"
       }
     }
   ],
@@ -200,6 +215,14 @@ Runs the retrieval and generation pipeline.
     "retrieval_mode": "pgvector",
     "embedding_provider": "openai",
     "generation_provider": "openai"
-  }
+  },
+  "machine_output": null
 }
 ```
+
+Response notes:
+
+- `answer` is Markdown intended for direct human display
+- `sources` remains the citation/evidence list
+- `machine_output` is optional structured JSON for formatting-oriented workflows such as travel/activity catalog extraction
+- visible `answer` content should not expose UUIDs or internal identifiers even when source chunks use them internally

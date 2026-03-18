@@ -1,6 +1,6 @@
 # Project Wiki
 
-This wiki documents the current first-beta RAG decision support system in this repository.
+This wiki documents the current first-beta Backoffice AI decision support system in this repository.
 
 Use this wiki as the main reference for:
 
@@ -30,6 +30,9 @@ The system currently provides:
 - embeddings with `mock` or `OpenAI` providers
 - PostgreSQL + `pgvector` retrieval
 - grounded answer generation with citations
+- metadata normalization for `category` with `domain` and `type` fallback
+- Markdown answer rendering in the frontend
+- structured `machine_output` for catalog-oriented formatting flows
 - document lifecycle versioning and stale-index detection
 - Alembic migrations
 - React frontend for beta testing

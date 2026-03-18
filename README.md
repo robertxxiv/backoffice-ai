@@ -38,6 +38,9 @@ flowchart LR
 - mock or OpenAI embedding/generation providers
 - reindex jobs with worker-compatible processing
 - semantic retrieval and grounded query generation with citations
+- metadata normalization for `category`, with fallback support for `domain` and `type`
+- catalog-aware answer formatting for travel and activity content
+- Markdown answer rendering plus optional structured machine output
 - document and job inspection endpoints
 - Alembic migrations with startup upgrade support
 - source-based document upserts with versioning and stale-index reset
@@ -176,7 +179,7 @@ Example response:
 
 ```json
 {
-  "answer": "Based on the indexed context: Norwegian VAT for consulting is 25 percent. [2a6f...]",
+  "answer": "## Answer\n\n- Norwegian VAT for consulting in Norway is 25 percent.",
   "sources": [
     {
       "document": "pricing-rules",
@@ -185,7 +188,8 @@ Example response:
       "excerpt": "Norwegian VAT for consulting is 25 percent...",
       "metadata": {
         "country": "NO",
-        "domain": "quotes"
+        "domain": "quotes",
+        "category": "quotes"
       }
     }
   ],
@@ -193,11 +197,32 @@ Example response:
     "top_k": 5,
     "threshold": 0.2,
     "retrieval_count": 1,
+    "retrieval_mode": "pgvector",
     "embedding_provider": "mock",
     "generation_provider": "mock"
-  }
+  },
+  "machine_output": null
 }
 ```
+
+For catalog and brochure questions, the generation layer can return richer Markdown plus a structured payload in `machine_output`. The visible `answer` is intended for users, while `machine_output` is intended for downstream integrations or validation.
+
+## Query UX Notes
+
+The current frontend query area is designed for non-technical internal users:
+
+- one main question field
+- `Category` and `Country` dropdown filters
+- optional advanced retrieval controls
+- staged loading animation during retrieval and generation
+- Markdown answer rendering
+- optional structured data panel when the backend returns `machine_output`
+
+Metadata behavior:
+
+- the backend normalizes `category`
+- if uploaded metadata contains `domain` or `type`, the system maps that into `category`
+- the frontend `Category` dropdown is populated automatically from ingested document metadata
 
 ## Token Usage and Cost
 
