@@ -87,6 +87,19 @@ Current default CORS origin:
 
 - `http://localhost:3000`
 
+## Frontend container works differently from local `npm run dev`
+
+This is expected:
+
+- local development uses the Vite dev server
+- Docker deployment serves the built frontend with Nginx on external port `3000`
+
+If you changed frontend code and do not see it in Docker:
+
+```bash
+docker compose up -d --build frontend
+```
+
 ## Migration issues
 
 Run manually:
@@ -109,6 +122,27 @@ If you see Docker socket permission errors:
 ```bash
 sudo usermod -aG docker "$USER"
 newgrp docker
+```
+
+Then retry:
+
+```bash
+docker compose up --build
+```
+
+## Docker Compose warns about Bake or buildx
+
+If you see:
+
+```text
+Docker Compose is configured to build using Bake, but buildx isn't installed
+```
+
+install Docker Buildx and verify it is available:
+
+```bash
+sudo apt install -y docker-buildx
+docker buildx version
 ```
 
 Then retry:

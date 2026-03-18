@@ -13,6 +13,7 @@ Install:
 - npm
 - Docker
 - Docker Compose
+- Docker Buildx
 
 Verify:
 
@@ -21,6 +22,7 @@ python3 --version
 npm --version
 docker --version
 docker compose version
+docker buildx version
 ```
 
 ## Repository Structure
@@ -78,6 +80,8 @@ PYTHONPATH=. uvicorn app.main:app --reload
 cd frontend
 npm run dev
 ```
+
+Use this local dev path when you want hot reload. The Docker `frontend` service is now a production static-serving container, not the Vite dev server.
 
 ### Full stack with Docker
 

@@ -57,8 +57,23 @@ flowchart LR
 - `GET /jobs/{id}`
 - React frontend for ingest, reindex, query, and document inspection
 - Docker Compose services for `api`, `worker`, `db`, and `frontend`
+- production frontend container served by Nginx, not the Vite dev server
 
 ## Run with Docker
+
+Prerequisites for Docker builds:
+
+- Docker Engine
+- Docker Compose v2
+- Docker Buildx
+
+Verify:
+
+```bash
+docker --version
+docker compose version
+docker buildx version
+```
 
 ```bash
 cp .env.example .env
@@ -78,6 +93,12 @@ Frontend API resolution:
 - example: if you open `http://192.168.1.50:3000`, the frontend will call `http://192.168.1.50:8000`
 - set `VITE_API_URL` only if your API is intentionally hosted on a different origin
 - the backend now accepts browser origins on port `3000` by default for LAN/VPN access; override with `CORS_ORIGINS` and `CORS_ORIGIN_REGEX` if needed
+
+Frontend container notes:
+
+- the Docker `frontend` service now serves the built static app with Nginx
+- the external URL remains `http://<host>:3000`
+- local frontend development without Docker still uses `npm run dev`
 
 By default the backend runs with deterministic `mock` providers so the stack works without external API keys.
 To use OpenAI for real embeddings and generation, set:

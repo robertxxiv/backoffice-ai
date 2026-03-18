@@ -21,12 +21,14 @@ Install on the target host:
 
 - Docker Engine
 - Docker Compose v2
+- Docker Buildx
 
 Verify:
 
 ```bash
 docker --version
 docker compose version
+docker buildx version
 ```
 
 Optional but useful:
@@ -230,7 +232,8 @@ Current service responsibilities:
   - persists application data
   - includes `pgvector`
 - `frontend`
-  - serves the React beta UI
+  - serves the built React UI with Nginx
+  - keeps the public frontend URL on port `3000`
   - by default resolves the API on the same host using port `8000`
 
 ## 7. Build and Start the Stack
