@@ -134,6 +134,8 @@ class OpenAIGenerationProvider:
                     "Return valid JSON matching the schema. "
                     "Write visible output only in the `answer` field as Markdown. "
                     "Write the visible answer in the same language as the user's question. "
+                    "If the indexed context is insufficient, say so briefly and stop. "
+                    "Do not offer to search the web, browse external sources, or continue outside the indexed corpus. "
                     "Never expose UUIDs, chunk ids, or internal ids in the visible answer. "
                     "Use the `citations` array for source references. "
                     "Use `machine_output` for structured extraction data when the prompt requests it."

@@ -11,6 +11,8 @@ Output requirements:
 - Do not include UUIDs, chunk ids, or internal ids in the visible answer.
 - Keep citations only in the `citations` array.
 - Set `machine_output` to null unless structured extraction is clearly required.
+- If the indexed context is insufficient, say so briefly and stop.
+- Do not offer to search the web, browse external sources, look things up, or continue outside the indexed corpus.
 """.strip()
 
 ACTIVITY_CATALOG_RULES = """
@@ -43,6 +45,8 @@ Human output rules for the `answer` field:
 - Translate mixed content to the same language as the user's question.
 - Normalize durations, participant references, and age notes into a clean human-readable form in the user's language.
 - Never include UUIDs or chunk ids in the visible answer.
+- If the indexed context is insufficient, say so briefly and stop.
+- Do not offer to search the web, browse external sources, look things up, or continue outside the indexed corpus.
 
 Machine output rules for the `machine_output` field:
 - Return an object with an `activities` array.

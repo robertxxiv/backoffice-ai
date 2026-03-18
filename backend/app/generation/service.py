@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from app.generation.formatting import select_generation_mode
 from app.core.config import Settings
+from app.generation.guardrails import strip_external_lookup_offers
 from app.generation.language import build_no_context_answer
 from app.generation.prompts import build_context
 from app.generation.providers import GenerationProvider, MockGenerationProvider, OpenAIGenerationProvider
@@ -22,7 +23,11 @@ class GenerationService:
             }
         mode = select_generation_mode(query, chunks)
         prompt = build_context(query, chunks, self._settings.context_character_limit, mode)
-        return self._provider.generate(prompt, mode=mode)
+        payload = self._provider.generate(prompt, mode=mode)
+        answer = payload.get("answer")
+        if isinstance(answer, str):
+            payload["answer"] = strip_external_lookup_offers(answer)
+        return payload
 
 
 def build_generation_service(settings: Settings) -> GenerationService:
