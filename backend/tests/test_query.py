@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -61,6 +62,56 @@ class QueryApiTests(unittest.TestCase):
         self.assertEqual(document_payload["status"], "indexed")
         self.assertGreaterEqual(document_payload["chunk_count"], 1)
         self.assertGreaterEqual(document_payload["embedding_count"], 1)
+
+    def test_query_accepts_category_filter_for_type_metadata(self) -> None:
+        ingest_response = self.client.post(
+            "/ingest",
+            json={
+                "payload": "The winter travel catalog includes Tromso and Alta packages.",
+                "metadata": {"type": "travel_catalog", "language": "it"},
+                "source_name": "travel-catalog",
+            },
+        )
+        self.assertEqual(ingest_response.status_code, 201)
+        document_id = ingest_response.json()["document_id"]
+
+        reindex_response = self.client.post(
+            "/reindex",
+            json={
+                "document_id": document_id,
+                "run_inline": True,
+                "strategy": "overlap",
+                "chunk_size": 512,
+                "overlap_tokens": 64,
+            },
+        )
+        self.assertEqual(reindex_response.status_code, 202)
+
+        query_response = self.client.post(
+            "/query",
+            json={"query": "Which destinations are in the travel catalog?", "filters": {"category": "travel_catalog"}},
+        )
+        payload = query_response.json()
+        self.assertEqual(query_response.status_code, 200)
+        self.assertTrue(payload["sources"])
+        self.assertEqual(payload["sources"][0]["metadata"]["category"], "travel_catalog")
+
+    def test_query_returns_json_error_when_generation_fails(self) -> None:
+        class FailingGenerationService:
+            def generate_answer(self, query: str, chunks: list[object]) -> dict[str, object]:
+                raise RuntimeError("generation exploded")
+
+        with patch("app.api.router.build_generation_service", return_value=FailingGenerationService()):
+            response = self.client.post(
+                "/query",
+                json={"query": "What is in the catalog?", "top_k": 5, "filters": {}},
+            )
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(
+            response.json()["detail"],
+            "The query could not be completed. Check the API logs for details.",
+        )
 
 
 if __name__ == "__main__":

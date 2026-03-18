@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 import httpx
@@ -29,9 +30,11 @@ from app.generation.service import build_generation_service
 from app.indexing.service import IndexingService
 from app.ingestion.schemas import IngestRequest, IngestResponse
 from app.ingestion.service import IngestionService
+from app.metadata import normalize_metadata
 from app.retrieval.service import RetrievalService
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def get_ingestion_service(settings: Settings = Depends(get_settings)) -> IngestionService:
@@ -191,15 +194,18 @@ def query_documents(
     session: Session = Depends(get_session),
     retrieval_service: RetrievalService = Depends(get_retrieval_service),
 ) -> QueryResponse:
-    chunks = retrieval_service.search(
-        query=payload.query,
-        session=session,
-        top_k=payload.top_k,
-        score_threshold=payload.score_threshold,
-        filters=payload.filters,
-    )
-    generation_service = build_generation_service(settings)
-    generated = generation_service.generate_answer(payload.query, chunks)
+    try:
+        chunks = retrieval_service.search(
+            query=payload.query,
+            session=session,
+            top_k=payload.top_k,
+            score_threshold=payload.score_threshold,
+            filters=payload.filters,
+        )
+        generation_service = build_generation_service(settings)
+        generated = generation_service.generate_answer(payload.query, chunks)
+    except Exception as exc:  # noqa: BLE001
+        _raise_query_exception(exc)
     cited_ids = {
         citation
         for citation in generated.get("citations", [])
@@ -241,6 +247,24 @@ def query_documents(
     )
     session.commit()
     return response
+
+
+def _raise_query_exception(exc: Exception) -> None:
+    logger.exception("query_request_failed")
+    if isinstance(exc, ValueError):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if isinstance(exc, httpx.HTTPError) or exc.__class__.__module__.startswith("openai"):
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=(
+                "The AI provider request failed. "
+                "Check provider credentials, model access, and upstream availability."
+            ),
+        ) from exc
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail="The query could not be completed. Check the API logs for details.",
+    ) from exc
 
 
 async def _handle_form_ingest(
@@ -294,7 +318,7 @@ def _document_summary(document: Document, session: Session) -> DocumentSummary:
         source_ref=document.source_ref,
         version=document.version,
         status=document.status,
-        metadata_summary=document.document_metadata,
+        metadata_summary=normalize_metadata(document.document_metadata),
         chunk_count=int(chunk_count),
         embedding_count=int(embedding_count),
         last_ingested_at=document.last_ingested_at,

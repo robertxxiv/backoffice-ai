@@ -5,8 +5,16 @@ const apiUrl = resolveApiUrl();
 const emptyQuery = {
   query: "",
   top_k: 5,
-  filters: "",
+  country: "",
+  category: "",
+  extraFilters: "",
 };
+
+const exampleQuestions = [
+  "What VAT rule applies to the latest Norwegian invoice?",
+  "Summarize the main information in the uploaded quote.",
+  "Which document mentions Hertz?",
+];
 
 export default function App() {
   const [documents, setDocuments] = useState([]);
@@ -19,6 +27,7 @@ export default function App() {
   const [queryResult, setQueryResult] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     void refreshDocuments();
@@ -121,7 +130,7 @@ export default function App() {
         body: JSON.stringify({
           query: queryForm.query,
           top_k: Number(queryForm.top_k),
-          filters: queryForm.filters ? parseJson(queryForm.filters) : {},
+          filters: buildQueryFilters(queryForm),
         }),
       });
       if (!response.ok) {
@@ -137,6 +146,7 @@ export default function App() {
   }
 
   const stats = buildStats(documents);
+  const filterOptions = buildFilterOptions(documents);
 
   return (
     <div className="page">
@@ -254,47 +264,106 @@ export default function App() {
           <div className="section-intro">
             <p className="section-label">Retrieval</p>
             <h2>Run a grounded query</h2>
-            <p>Adjust retrieval breadth only when needed. Smaller contexts are cheaper and sharper.</p>
+            <p>Ask in plain language. Narrow the scope only when you need to.</p>
+          </div>
+          <div className="prompt-suggestions">
+            {exampleQuestions.map((question) => (
+              <button
+                key={question}
+                className="suggestion-chip"
+                onClick={() => setQueryForm({ ...queryForm, query: question })}
+                type="button"
+              >
+                {question}
+              </button>
+            ))}
           </div>
           <form onSubmit={handleQuery} className="query-form">
             <label className="query-query">
-              <span className="field-label">Ask a grounded question</span>
+              <span className="field-label">Ask your question</span>
               <input
                 type="text"
-                placeholder="Which VAT rule applies to the latest Norwegian invoice?"
+                placeholder="Ask about uploaded and indexed documents"
                 value={queryForm.query}
                 onChange={(event) => setQueryForm({ ...queryForm, query: event.target.value })}
               />
             </label>
             <label>
-              <span className="field-label">top_k</span>
-              <input
-                type="number"
-                min="1"
-                max="20"
-                value={queryForm.top_k}
-                onChange={(event) => setQueryForm({ ...queryForm, top_k: event.target.value })}
-              />
+              <span className="field-label">Category</span>
+              <select
+                value={queryForm.category}
+                onChange={(event) => setQueryForm({ ...queryForm, category: event.target.value })}
+              >
+                <option value="">All categories</option>
+                {filterOptions.categories.map((category) => (
+                  <option key={category} value={category}>
+                    {formatOptionLabel(category)}
+                  </option>
+                ))}
+              </select>
             </label>
             <label>
-              <span className="field-label">Filters JSON</span>
-              <input
-                type="text"
-                placeholder='{"country":"NO"}'
-                value={queryForm.filters}
-                onChange={(event) => setQueryForm({ ...queryForm, filters: event.target.value })}
-              />
+              <span className="field-label">Country</span>
+              <select
+                value={queryForm.country}
+                onChange={(event) => setQueryForm({ ...queryForm, country: event.target.value })}
+              >
+                <option value="">Any country</option>
+                {filterOptions.countries.map((country) => (
+                  <option key={country} value={country}>
+                    {country}
+                  </option>
+                ))}
+              </select>
             </label>
             <button className="primary-button" disabled={busy} type="submit">
-              Run Query
+              Search Company Knowledge
             </button>
           </form>
+          <div className="query-help">
+            <p>Ask about indexed documents only. If you just uploaded a file, reindex it first.</p>
+            <button
+              className="link-button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              type="button"
+            >
+              {showAdvanced ? "Hide advanced options" : "Show advanced options"}
+            </button>
+          </div>
+
+          {showAdvanced ? (
+            <div className="advanced-panel">
+              <div className="advanced-grid">
+                <label>
+                  <span className="field-label">Retrieval breadth</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={queryForm.top_k}
+                    onChange={(event) => setQueryForm({ ...queryForm, top_k: event.target.value })}
+                  />
+                </label>
+                <label>
+                  <span className="field-label">Extra filters JSON</span>
+                  <input
+                    type="text"
+                    placeholder='{"customer":"hertz"}'
+                    value={queryForm.extraFilters}
+                    onChange={(event) =>
+                      setQueryForm({ ...queryForm, extraFilters: event.target.value })
+                    }
+                  />
+                </label>
+              </div>
+            </div>
+          ) : null}
 
           {queryResult ? (
             <div className="result">
               <div className="result-block">
                 <p className="section-label">Answer</p>
-                <p className="answer-copy">{queryResult.answer}</p>
+                <FormattedAnswer text={queryResult.answer} />
               </div>
               <div className="result-block">
                 <p className="section-label">Sources</p>
@@ -307,14 +376,14 @@ export default function App() {
                       <span className="score-pill">{Number(source.score).toFixed(3)}</span>
                     </div>
                     <p>{source.excerpt}</p>
-                    <small>chunk: {source.chunk}</small>
+                    <small>From document evidence</small>
                   </article>
                 ))}
               </div>
-              <div className="result-block">
-                <p className="section-label">Trace</p>
+              <details className="trace-panel">
+                <summary>Show technical details</summary>
                 <pre>{JSON.stringify(queryResult.trace, null, 2)}</pre>
-              </div>
+              </details>
             </div>
           ) : null}
         </section>
@@ -365,11 +434,149 @@ function buildStats(documents) {
   ];
 }
 
+function buildFilterOptions(documents) {
+  const countries = new Set();
+  const categories = new Set();
+
+  documents.forEach((document) => {
+    const metadata = document.metadata_summary || {};
+    if (typeof metadata.country === "string" && metadata.country) {
+      countries.add(metadata.country);
+    }
+    const category = firstString(metadata.category, metadata.domain, metadata.type);
+    if (category) {
+      categories.add(category);
+    }
+  });
+
+  return {
+    countries: Array.from(countries).sort(),
+    categories: Array.from(categories).sort(),
+  };
+}
+
+function buildQueryFilters(queryForm) {
+  const filters = {};
+
+  if (queryForm.country) {
+    filters.country = queryForm.country;
+  }
+  if (queryForm.category) {
+    filters.category = queryForm.category;
+  }
+  if (queryForm.extraFilters) {
+    Object.assign(filters, parseJson(queryForm.extraFilters));
+  }
+
+  return filters;
+}
+
 function formatDate(value) {
   if (!value) {
     return "n/a";
   }
   return new Date(value).toLocaleDateString();
+}
+
+function formatOptionLabel(value) {
+  return value
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function firstString(...values) {
+  return values.find((value) => typeof value === "string" && value) || "";
+}
+
+function FormattedAnswer({ text }) {
+  const blocks = buildAnswerBlocks(text);
+
+  return (
+    <div className="answer-body">
+      {blocks.map((block, index) => {
+        if (block.type === "list") {
+          return (
+            <ul key={`${block.type}-${index}`} className="answer-list">
+              {block.items.map((item, itemIndex) => (
+                <li key={`${index}-${itemIndex}`}>{renderAnswerInline(item)}</li>
+              ))}
+            </ul>
+          );
+        }
+
+        return (
+          <p key={`${block.type}-${index}`} className="answer-paragraph">
+            {renderAnswerInline(block.text)}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+function buildAnswerBlocks(text) {
+  const normalized = normalizeAnswerText(text);
+  const parts = normalized
+    .split(/\n{2,}/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  return parts.map((part) => {
+    const lines = part
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const bulletLines = lines
+      .filter((line) => line.startsWith("- "))
+      .map((line) => line.slice(2).trim());
+
+    if (bulletLines.length > 0 && bulletLines.length === lines.length) {
+      return { type: "list", items: bulletLines };
+    }
+
+    return { type: "paragraph", text: part };
+  });
+}
+
+function normalizeAnswerText(text) {
+  return text
+    .replace(/\r\n/g, "\n")
+    .replace(/:\s+-\s+/g, ":\n- ")
+    .replace(/\]\.\s+-\s+/g, "].\n- ")
+    .replace(/\]\s+-\s+/g, "]\n- ")
+    .replace(/\.\s+-\s+/g, ".\n- ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function renderAnswerInline(text) {
+  const matches = text.matchAll(/\[([^[\]]+)\]/g);
+  const segments = [];
+  let lastIndex = 0;
+
+  for (const match of matches) {
+    const [fullMatch, citation] = match;
+    const start = match.index ?? 0;
+
+    if (start > lastIndex) {
+      segments.push(text.slice(lastIndex, start));
+    }
+
+    segments.push(
+      <span key={`${citation}-${start}`} className="citation-tag">
+        {citation}
+      </span>,
+    );
+    lastIndex = start + fullMatch.length;
+  }
+
+  if (lastIndex < text.length) {
+    segments.push(text.slice(lastIndex));
+  }
+
+  return segments.length > 0 ? segments : text;
 }
 
 async function readError(response) {

@@ -48,6 +48,20 @@ class IngestionApiTests(unittest.TestCase):
         self.assertEqual(payload["source_type"], "payload")
         self.assertEqual(payload["source_ref"], "pricing-dump")
 
+    def test_metadata_type_is_normalized_to_category(self) -> None:
+        response = self.client.post(
+            "/ingest",
+            json={
+                "payload": "Winter catalog for Northern Norway.",
+                "metadata": {"type": "travel_catalog", "language": "it"},
+                "source_name": "nordikae-catalog",
+            },
+        )
+        payload = response.json()
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(payload["metadata_summary"]["category"], "travel_catalog")
+        self.assertEqual(payload["metadata_summary"]["type"], "travel_catalog")
+
     def test_rejects_unsupported_upload(self) -> None:
         files = {"file": ("notes.txt", b"plain text", "text/plain")}
         response = self.client.post("/ingest", files=files)

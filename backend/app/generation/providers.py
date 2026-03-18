@@ -53,7 +53,10 @@ class OpenAIGenerationProvider:
             instructions=(
                 "Answer only from the provided context. "
                 "If context is insufficient, say so. "
-                "Use inline citations such as [chunk-id]."
+                "Use short, human-readable formatting. "
+                "Start with a brief direct answer, then use one bullet per point when listing items. "
+                "Keep bullets concise and place citations inline such as [chunk-id]. "
+                "Do not return one long paragraph when multiple points are present."
             ),
             input=prompt,
             text={

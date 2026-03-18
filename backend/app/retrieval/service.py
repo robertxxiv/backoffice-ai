@@ -10,6 +10,7 @@ from app.core.config import Settings
 from app.db.models import Chunk, Document, Embedding
 from app.db.vector import cosine_similarity
 from app.embeddings.service import EmbeddingService
+from app.metadata import metadata_value, normalize_metadata
 from app.retrieval.schemas import RetrievedChunk
 from pgvector.sqlalchemy import Vector
 
@@ -81,7 +82,7 @@ class RetrievalService:
                 document_ref=document.source_ref,
                 content=chunk.content,
                 score=float(score),
-                metadata={**document.document_metadata, **chunk.chunk_metadata},
+                metadata=normalize_metadata({**document.document_metadata, **chunk.chunk_metadata}),
             )
             for chunk, document, score in rows
             if _matches_filters({**document.document_metadata, **chunk.chunk_metadata}, filters)
@@ -106,7 +107,7 @@ class RetrievalService:
                 document_ref=document.source_ref,
                 content=chunk.content,
                 score=cosine_similarity(query_vector, embedding.vector),
-                metadata={**document.document_metadata, **chunk.chunk_metadata},
+                metadata=normalize_metadata({**document.document_metadata, **chunk.chunk_metadata}),
             )
             for embedding, chunk, document in rows
             if _matches_filters({**document.document_metadata, **chunk.chunk_metadata}, filters)
@@ -118,7 +119,7 @@ class RetrievalService:
 def _matches_filters(metadata: dict[str, Any], filters: dict[str, Any] | None) -> bool:
     if not filters:
         return True
-    return all(metadata.get(key) == value for key, value in filters.items())
+    return all(metadata_value(metadata, key) == value for key, value in filters.items())
 
 
 def _deduplicate(items: list[RetrievedChunk], top_k: int) -> list[RetrievedChunk]:

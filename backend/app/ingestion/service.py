@@ -13,6 +13,7 @@ from app.db.models import Chunk, Document, Embedding, IndexJob
 from app.ingestion.extractors import detect_content_type, extract_payload_text, extract_text
 from app.ingestion.normalizers import normalize_text
 from app.ingestion.schemas import ExtractedDocument, IngestRequest, IngestResponse
+from app.metadata import normalize_metadata
 
 
 class IngestionService:
@@ -68,6 +69,7 @@ class IngestionService:
 
     def _persist(self, extracted: ExtractedDocument, session: Session) -> IngestResponse:
         normalized_content = normalize_text(extracted.content)
+        normalized_metadata = normalize_metadata(extracted.metadata)
         content_hash = hashlib.sha256(normalized_content.encode("utf-8")).hexdigest()
         existing = session.scalar(
             select(Document).where(
@@ -82,17 +84,17 @@ class IngestionService:
                 content_type=extracted.content_type,
                 content_hash=content_hash,
                 content=normalized_content,
-                document_metadata=extracted.metadata,
+                document_metadata=normalized_metadata,
             )
             session.add(document)
             session.commit()
             session.refresh(document)
             return _build_ingest_response(document, lifecycle_action="created")
         if existing.content_hash == content_hash:
-            changed_metadata = existing.document_metadata != extracted.metadata
+            changed_metadata = existing.document_metadata != normalized_metadata
             changed_type = existing.content_type != extracted.content_type
             if changed_metadata or changed_type:
-                existing.document_metadata = extracted.metadata
+                existing.document_metadata = normalized_metadata
                 existing.content_type = extracted.content_type
                 session.commit()
                 session.refresh(existing)
@@ -102,7 +104,7 @@ class IngestionService:
         existing.content = normalized_content
         existing.content_hash = content_hash
         existing.content_type = extracted.content_type
-        existing.document_metadata = extracted.metadata
+        existing.document_metadata = normalized_metadata
         existing.version += 1
         existing.status = "ingested"
         existing.index_error = None
@@ -148,7 +150,7 @@ def _build_ingest_response(document: Document, lifecycle_action: str) -> IngestR
         status=document.status,
         lifecycle_action=lifecycle_action,
         content_length=len(document.content),
-        metadata_summary=document.document_metadata,
+        metadata_summary=normalize_metadata(document.document_metadata),
         last_ingested_at=document.last_ingested_at,
         last_indexed_at=document.last_indexed_at,
         is_index_stale=_is_index_stale(document),
