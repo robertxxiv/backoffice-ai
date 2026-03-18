@@ -93,7 +93,8 @@ Frontend API resolution:
 - by default the frontend calls the same host on port `8000`
 - example: if you open `http://192.168.1.50:3000`, the frontend will call `http://192.168.1.50:8000`
 - set `VITE_API_URL` only if your API is intentionally hosted on a different origin
-- the backend now accepts browser origins on port `3000` by default for LAN/VPN access; override with `CORS_ORIGINS` and `CORS_ORIGIN_REGEX` if needed
+- the backend only allows explicitly configured frontend origins
+- for LAN/VPN access, add the exact frontend origin to `CORS_ORIGINS`, for example `["http://localhost:3000","http://192.168.1.50:3000"]`
 
 Frontend container notes:
 

@@ -28,6 +28,60 @@ class AppSecurityTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("invalid host", response.text.lower())
 
+    def test_cors_allows_only_explicit_origins_by_default(self) -> None:
+        application = create_app(
+            Settings(
+                trusted_hosts=["testserver"],
+                cors_origins=["http://localhost:3000"],
+                cors_origin_regex="",
+                cors_allow_credentials=False,
+            )
+        )
+        with TestClient(application) as client:
+            allowed = client.options(
+                "/health",
+                headers={
+                    "origin": "http://localhost:3000",
+                    "access-control-request-method": "GET",
+                    "host": "testserver",
+                },
+            )
+            blocked = client.options(
+                "/health",
+                headers={
+                    "origin": "http://172.16.5.48:3000",
+                    "access-control-request-method": "GET",
+                    "host": "testserver",
+                },
+            )
+
+        self.assertEqual(allowed.status_code, 200)
+        self.assertEqual(
+            allowed.headers.get("access-control-allow-origin"),
+            "http://localhost:3000",
+        )
+        self.assertIsNone(blocked.headers.get("access-control-allow-origin"))
+
+    def test_cors_credentials_are_opt_in(self) -> None:
+        application = create_app(
+            Settings(
+                trusted_hosts=["testserver"],
+                cors_origins=["http://localhost:3000"],
+                cors_allow_credentials=False,
+            )
+        )
+        with TestClient(application) as client:
+            response = client.options(
+                "/health",
+                headers={
+                    "origin": "http://localhost:3000",
+                    "access-control-request-method": "GET",
+                    "host": "testserver",
+                },
+            )
+
+        self.assertNotIn("access-control-allow-credentials", response.headers)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -31,7 +31,8 @@ class Settings(BaseSettings):
     context_character_limit: int = 6000
     worker_poll_seconds: int = 5
     cors_origins: list[str] = ["http://localhost:3000"]
-    cors_origin_regex: str = r"^https?://([a-zA-Z0-9.-]+|\d{1,3}(\.\d{1,3}){3}):3000$"
+    cors_origin_regex: str = ""
+    cors_allow_credentials: bool = False
     run_migrations_on_startup: bool = True
 
     model_config = SettingsConfigDict(

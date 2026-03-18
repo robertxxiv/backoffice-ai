@@ -83,9 +83,10 @@ Check:
 - `VITE_API_URL` is correct
 - CORS allows the frontend origin
 
-Current default CORS origin:
+Current secure default:
 
 - `http://localhost:3000`
+- remote frontend origins must be added explicitly to `CORS_ORIGINS`
 
 ## Frontend container works differently from local `npm run dev`
 

@@ -79,7 +79,9 @@ ENABLE_API_DOCS=false
 MAX_UPLOAD_FILE_BYTES=10485760
 MAX_INGEST_REQUEST_BYTES=12582912
 MAX_INGEST_JSON_BYTES=2097152
-CORS_ORIGINS=["http://localhost:3000"]
+CORS_ORIGINS=["http://localhost:3000","http://your-server-ip-or-hostname:3000"]
+CORS_ORIGIN_REGEX=
+CORS_ALLOW_CREDENTIALS=false
 RUN_MIGRATIONS_ON_STARTUP=true
 ```
 
@@ -102,6 +104,9 @@ Important:
 - the frontend never needs the OpenAI key
 - change `POSTGRES_PASSWORD` before first deployment
 - set `TRUSTED_HOSTS` to the exact hostnames or LAN IPs users will use to access the API
+- set `CORS_ORIGINS` to the exact frontend origins users will open in the browser
+- keep `CORS_ORIGIN_REGEX` empty unless you have a deliberate development-only reason to widen origin matching
+- keep `CORS_ALLOW_CREDENTIALS=false` until a real auth/session model is introduced
 - API docs are disabled by default in this hardened setup; enable them only when needed
 - oversize ingest requests now fail with `413`; tune the `MAX_*_BYTES` values only if your document policy requires it
 
@@ -390,7 +395,8 @@ Frontend behavior note:
 - the frontend now derives the API base URL from the browser hostname by default
 - if a user opens `http://192.168.1.50:3000`, the UI will call `http://192.168.1.50:8000`
 - this avoids the common remote-access failure where the browser tries to call its own `localhost:8000`
-- the backend CORS policy accepts frontend origins on port `3000` by default, which covers typical LAN/VPN access by IP or hostname
+- the backend CORS policy does not allow arbitrary LAN origins by default
+- add every real frontend origin explicitly to `CORS_ORIGINS`, for example `["http://localhost:3000","http://192.168.1.50:3000"]`
 
 ### Case B: remote access from the public internet
 
@@ -426,7 +432,7 @@ The reverse proxy should provide:
 - optional external auth layer
 
 If you later host the frontend and API on different origins, set `VITE_API_URL` explicitly during frontend build.
-If you use a different frontend host or port, also adjust `CORS_ORIGINS` and `CORS_ORIGIN_REGEX`.
+If you use a different frontend host or port, also adjust `CORS_ORIGINS`. Keep `CORS_ORIGIN_REGEX` empty unless you intentionally want broader development-time access.
 
 ### Example remote access process for a small team
 
