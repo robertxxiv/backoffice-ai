@@ -68,7 +68,13 @@ curl http://localhost:8000/health
   "status": "ok",
   "database": "ok",
   "embedding_provider": "openai",
-  "generation_provider": "openai"
+  "generation_provider": "openai",
+  "api_docs_enabled": false,
+  "upload_limits": {
+    "file_bytes": 10485760,
+    "request_bytes": 12582912,
+    "json_bytes": 2097152
+  }
 }
 ```
 

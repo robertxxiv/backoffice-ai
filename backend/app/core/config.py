@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     app_name: str = "Backoffice AI"
     database_url: str = "sqlite+pysqlite:///./backoffice_ai.db"
     request_timeout_seconds: int = 45
+    max_upload_file_bytes: int = 10 * 1024 * 1024
+    max_ingest_request_bytes: int = 12 * 1024 * 1024
+    max_ingest_json_bytes: int = 2 * 1024 * 1024
     trusted_hosts: list[str] = ["localhost", "127.0.0.1", "testserver"]
     enable_api_docs: bool = False
     url_ingest_allowed_domains: list[str] = []

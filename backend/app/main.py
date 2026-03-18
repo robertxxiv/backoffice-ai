@@ -27,6 +27,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redoc_url="/redoc" if resolved_settings.enable_api_docs else None,
         openapi_url="/openapi.json" if resolved_settings.enable_api_docs else None,
     )
+    if settings is not None:
+        application.dependency_overrides[get_settings] = lambda: resolved_settings
     application.add_middleware(TrustedHostMiddleware, allowed_hosts=resolved_settings.trusted_hosts)
     application.add_middleware(
         CORSMiddleware,

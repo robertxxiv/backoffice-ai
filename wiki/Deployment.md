@@ -76,6 +76,9 @@ EMBEDDING_MODEL=text-embedding-3-small
 GENERATION_MODEL=gpt-5-mini
 TRUSTED_HOSTS=["localhost","127.0.0.1","your-server-ip-or-hostname"]
 ENABLE_API_DOCS=false
+MAX_UPLOAD_FILE_BYTES=10485760
+MAX_INGEST_REQUEST_BYTES=12582912
+MAX_INGEST_JSON_BYTES=2097152
 CORS_ORIGINS=["http://localhost:3000"]
 RUN_MIGRATIONS_ON_STARTUP=true
 ```
@@ -100,6 +103,7 @@ Important:
 - change `POSTGRES_PASSWORD` before first deployment
 - set `TRUSTED_HOSTS` to the exact hostnames or LAN IPs users will use to access the API
 - API docs are disabled by default in this hardened setup; enable them only when needed
+- oversize ingest requests now fail with `413`; tune the `MAX_*_BYTES` values only if your document policy requires it
 
 ## 5. PostgreSQL Setup and Configuration
 

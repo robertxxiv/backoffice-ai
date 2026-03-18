@@ -4,6 +4,8 @@ import unittest
 
 from fastapi.testclient import TestClient
 
+from app.core.config import Settings
+from app.main import create_app
 from app.main import app
 
 
@@ -70,3 +72,38 @@ class IngestionApiTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class IngestionLimitTests(unittest.TestCase):
+    def test_rejects_oversized_json_payload(self) -> None:
+        application = create_app(
+            Settings(
+                trusted_hosts=["testserver"],
+                max_ingest_json_bytes=64,
+            )
+        )
+        with TestClient(application) as client:
+            response = client.post(
+                "/ingest",
+                json={
+                    "payload": "x" * 256,
+                    "metadata": {"source": "test"},
+                    "source_name": "too-large-json",
+                },
+            )
+        self.assertEqual(response.status_code, 413)
+        self.assertIn("size limit", response.json()["detail"].lower())
+
+    def test_rejects_oversized_file_upload(self) -> None:
+        application = create_app(
+            Settings(
+                trusted_hosts=["testserver"],
+                max_ingest_request_bytes=1024,
+                max_upload_file_bytes=16,
+            )
+        )
+        with TestClient(application) as client:
+            files = {"file": ("large.md", b"x" * 64, "text/markdown")}
+            response = client.post("/ingest", files=files)
+        self.assertEqual(response.status_code, 413)
+        self.assertIn("size limit", response.json()["detail"].lower())

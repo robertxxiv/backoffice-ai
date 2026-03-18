@@ -35,7 +35,19 @@ The system currently provides:
 - structured `machine_output` for catalog-oriented formatting flows
 - document lifecycle versioning and stale-index detection
 - Alembic migrations
-- React frontend for beta testing
+- React frontend as a routed internal web app
+
+## Frontend Shape
+
+The current beta frontend is organized into these views:
+
+- landing page at `/`
+- dashboard at `/dashboard`
+- ingestion at `/ingestion`
+- search at `/search`
+- documents at `/documents`
+- jobs at `/jobs`
+- settings at `/settings`
 
 ## Current Non-Goals
 

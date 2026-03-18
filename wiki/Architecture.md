@@ -7,7 +7,7 @@ The system is a modular RAG pipeline with four runtime services:
 - `api`: FastAPI application
 - `worker`: background indexing worker
 - `db`: PostgreSQL with `pgvector`
-- `frontend`: React/Vite beta console
+- `frontend`: React/Vite web app served by Nginx in Docker
 
 ## Data Flow
 
@@ -34,6 +34,15 @@ flowchart LR
     Q --> L
     Q --> N
 ```
+
+## Frontend Architecture
+
+The frontend is no longer a single long dashboard view. It is organized as:
+
+- landing page at `/`
+- routed workspace pages for dashboard, ingestion, search, documents, jobs, and settings
+- shared app state and API actions in a central hook
+- shell layout with sidebar navigation for workspace pages
 
 ## Backend Modules
 

@@ -70,22 +70,36 @@ def healthcheck(
         "database": "ok",
         "embedding_provider": settings.embedding_provider,
         "generation_provider": settings.generation_provider,
+        "api_docs_enabled": settings.enable_api_docs,
+        "upload_limits": {
+            "file_bytes": settings.max_upload_file_bytes,
+            "request_bytes": settings.max_ingest_request_bytes,
+            "json_bytes": settings.max_ingest_json_bytes,
+        },
     }
 
 
 @router.post("/ingest", response_model=IngestResponse, status_code=status.HTTP_201_CREATED)
 async def ingest_document(
     request: Request,
+    settings: Settings = Depends(get_settings),
     session: Session = Depends(get_session),
     service: IngestionService = Depends(get_ingestion_service),
 ) -> IngestResponse:
     content_type = request.headers.get("content-type", "")
     try:
         if content_type.startswith("multipart/form-data"):
-            return await _handle_form_ingest(request, service, session)
+            _enforce_content_length_limit(
+                request,
+                settings.max_ingest_request_bytes,
+                "The upload request exceeds the configured size limit.",
+            )
+            return await _handle_form_ingest(request, service, session, settings.max_upload_file_bytes)
         if content_type.startswith("application/json"):
-            payload = IngestRequest.model_validate(await request.json())
+            payload = await _parse_json_ingest_request(request, settings.max_ingest_json_bytes)
             return service.ingest_request(payload, session)
+    except HTTPException:
+        raise
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except httpx.HTTPError as exc:
@@ -276,6 +290,7 @@ async def _handle_form_ingest(
     request: Request,
     service: IngestionService,
     session: Session,
+    max_upload_file_bytes: int,
 ) -> IngestResponse:
     form = await request.form()
     upload = form.get("file")
@@ -283,7 +298,7 @@ async def _handle_form_ingest(
         raise ValueError("Form uploads must include a 'file' field.")
     metadata = _parse_metadata(form.get("metadata"))
     try:
-        data = await upload.read()
+        data = await _read_upload_with_limit(upload, max_upload_file_bytes)
         return service.ingest_file(
             filename=upload.filename,
             content_type=getattr(upload, "content_type", None),
@@ -304,6 +319,42 @@ def _parse_metadata(raw_value: Any) -> dict[str, Any]:
     if not isinstance(parsed, dict):
         raise ValueError("metadata must decode to a JSON object.")
     return parsed
+
+
+async def _parse_json_ingest_request(request: Request, max_bytes: int) -> IngestRequest:
+    raw_body = await request.body()
+    if len(raw_body) > max_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="The JSON ingest payload exceeds the configured size limit.",
+        )
+    return IngestRequest.model_validate(json.loads(raw_body))
+
+
+def _enforce_content_length_limit(request: Request, max_bytes: int, detail: str) -> None:
+    raw_length = request.headers.get("content-length")
+    if raw_length is None:
+        return
+    try:
+        content_length = int(raw_length)
+    except ValueError:
+        return
+    if content_length > max_bytes:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=detail)
+
+
+async def _read_upload_with_limit(upload: Any, max_bytes: int) -> bytes:
+    data = bytearray()
+    while True:
+        chunk = await upload.read(1024 * 1024)
+        if not chunk:
+            return bytes(data)
+        data.extend(chunk)
+        if len(data) > max_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail="The uploaded file exceeds the configured size limit.",
+            )
 
 
 def _document_summary(document: Document, session: Session) -> DocumentSummary:

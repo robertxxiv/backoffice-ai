@@ -19,14 +19,28 @@ Open:
 
 - `http://localhost:3000`
 
-The beta UI has four main areas:
+The beta UI is now organized as separate views:
 
-- ingest
-- indexed documents
-- query
+- landing page
+- dashboard
+- ingestion
+- search
+- documents
 - jobs
+- settings
 
-## 1. Ingest Content
+## 1. Start From the Landing Page
+
+The landing page is the first entry point.
+
+From there you can:
+
+- enter the workspace
+- jump directly to search
+
+After entering the workspace, use the sidebar navigation to move between pages.
+
+## 2. Ingest Content
 
 You can ingest:
 
@@ -47,12 +61,17 @@ Metadata behavior:
 - if you provide `domain` or `type`, the backend also derives `category`
 - the query UI `Category` dropdown updates automatically from ingested document metadata
 
-## 2. Reindex the Document
+Use the `Ingestion` page for uploads and payload ingest.
+
+Use the `Documents` page to manage the indexed corpus.
+
+## 3. Reindex the Document
 
 After a document is ingested, it is not query-ready until indexing runs.
 
 From the UI:
 
+- go to `Documents`
 - click `Reindex` for one document
 - or click `Reindex All`
 
@@ -62,9 +81,9 @@ After reindexing, the document should show:
 - embeddings > 0
 - status `indexed`
 
-## 3. Ask a Query
+## 4. Ask a Query
 
-Enter a natural-language question in the query box.
+Open the `Search` page and enter a natural-language question.
 
 Examples:
 
@@ -85,7 +104,7 @@ Examples:
 - choose `Country: NO`
 - then ask `Quali attività posso fare ad Alta?`
 
-## 4. Read the Result
+## 5. Read the Result
 
 Each response includes:
 
@@ -108,7 +127,7 @@ Always review:
 
 While a query is running, the result area shows a staged loading panel instead of staying blank. This is expected and indicates that retrieval and answer generation are in progress.
 
-## 5. Re-ingesting Updated Content
+## 6. Re-ingesting Updated Content
 
 If the same document source is ingested again:
 
@@ -122,7 +141,7 @@ That means:
 - run reindex again
 - then query the new version
 
-## 6. When Results Look Wrong
+## 7. When Results Look Wrong
 
 Check:
 
@@ -133,7 +152,16 @@ Check:
 
 If needed, ask an administrator to inspect the document and job status.
 
-## 7. Cost Awareness
+## 8. Other Pages
+
+Use the remaining pages like this:
+
+- `Dashboard`: overview and quick links
+- `Documents`: corpus management, reindex, delete
+- `Jobs`: recent pipeline activity
+- `Settings`: read-only runtime and limit information
+
+## 9. Cost Awareness
 
 If the system is configured with real OpenAI providers, usage has a cost.
 

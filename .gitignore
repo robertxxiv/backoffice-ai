@@ -15,3 +15,6 @@ backend/app/**/__pycache__/
 
 backups/
 .playwright-cli/
+.playwright-mcp/
+dashboard-*.png
+sidebar-brand.png

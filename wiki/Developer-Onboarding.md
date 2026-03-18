@@ -42,6 +42,11 @@ docker buildx version
     /retrieval
   /tests
 /frontend
+  /src
+    /components
+    /hooks
+    /lib
+    /pages
 /wiki
 ```
 
@@ -82,6 +87,12 @@ npm run dev
 ```
 
 Use this local dev path when you want hot reload. The Docker `frontend` service is now a production static-serving container, not the Vite dev server.
+
+The frontend is organized as a routed app:
+
+- landing page outside the shell
+- workspace pages inside the sidebar shell
+- shared state/actions in `src/hooks/useBackofficeApp.js`
 
 ### Full stack with Docker
 

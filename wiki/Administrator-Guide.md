@@ -21,6 +21,25 @@ This page is for the person operating the system day to day.
 - `db`
 - `frontend`
 
+## Frontend Views
+
+The operator-facing frontend is now split into these routes:
+
+- `/`
+- `/dashboard`
+- `/ingestion`
+- `/search`
+- `/documents`
+- `/jobs`
+- `/settings`
+
+Operationally:
+
+- `Ingestion` is for new source entry
+- `Documents` is for reindex/delete management
+- `Jobs` is for pipeline visibility
+- `Settings` is read-only runtime information
+
 ## Token Usage and Cost
 
 This matters only when the system is running with:
@@ -199,7 +218,7 @@ Use `run_inline=false` when you want the worker to process jobs asynchronously.
 At minimum:
 
 1. check `/health`
-2. check the frontend loads
+2. check the landing page and dashboard load
 3. verify no documents are unexpectedly stale
 4. verify no jobs are stuck in `failed`
 

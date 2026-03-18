@@ -56,7 +56,7 @@ flowchart LR
 - `GET /documents`
 - `GET /documents/{id}`
 - `GET /jobs/{id}`
-- React frontend for ingest, reindex, query, and document inspection
+- React frontend structured as a small routed web app
 - Docker Compose services for `api`, `worker`, `db`, and `frontend`
 - production frontend container served by Nginx, not the Vite dev server
 
@@ -100,6 +100,15 @@ Frontend container notes:
 - the Docker `frontend` service now serves the built static app with Nginx
 - the external URL remains `http://<host>:3000`
 - local frontend development without Docker still uses `npm run dev`
+- the frontend now uses routed views instead of a single long page
+- main routes are:
+  - `/`
+  - `/dashboard`
+  - `/ingestion`
+  - `/search`
+  - `/documents`
+  - `/jobs`
+  - `/settings`
 
 By default the backend runs with deterministic `mock` providers so the stack works without external API keys.
 To use OpenAI for real embeddings and generation, set:
@@ -125,6 +134,7 @@ Database notes:
 - for admin access, use `docker compose exec db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"`
 - add your server hostname or LAN IP to `TRUSTED_HOSTS` before remote use
 - API docs are disabled by default; set `ENABLE_API_DOCS=true` temporarily if you need `/docs`
+- ingest size limits are configurable with `MAX_UPLOAD_FILE_BYTES`, `MAX_INGEST_REQUEST_BYTES`, and `MAX_INGEST_JSON_BYTES`
 
 ## Migrations
 
@@ -240,9 +250,19 @@ Example response:
 
 For catalog and brochure questions, the generation layer can return richer Markdown plus a structured payload in `machine_output`. The visible `answer` is intended for users, while `machine_output` is intended for downstream integrations or validation.
 
-## Query UX Notes
+## Frontend UX Notes
 
-The current frontend query area is designed for non-technical internal users:
+The current frontend is organized as a small internal web app:
+
+- landing page at `/`
+- dashboard overview at `/dashboard`
+- dedicated ingestion workspace at `/ingestion`
+- dedicated search workspace at `/search`
+- corpus management at `/documents`
+- job visibility at `/jobs`
+- read-only runtime information at `/settings`
+
+The search page is designed for non-technical internal users:
 
 - one main question field
 - `Category` and `Country` dropdown filters
