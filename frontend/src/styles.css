@@ -1197,6 +1197,41 @@ select:focus {
   line-height: 1.5;
 }
 
+.notice {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 49;
+  max-width: min(34rem, calc(100vw - 2rem));
+  border-radius: var(--r-lg);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.32);
+  padding: 1rem 1.2rem;
+  backdrop-filter: blur(16px);
+  animation: slide-up 280ms ease both;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.notice-success {
+  border: 1px solid rgba(60, 170, 162, 0.28);
+  background: rgba(12, 41, 39, 0.95);
+  color: #d7fffb;
+}
+
+.inline-notice {
+  margin-top: 1rem;
+  border-radius: var(--r);
+  padding: 0.85rem 1rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.inline-notice-success {
+  border: 1px solid rgba(60, 170, 162, 0.18);
+  background: rgba(13, 40, 38, 0.72);
+  color: #cffaf4;
+}
+
 /* ─── Landing page ──────────────────────────────────────────────── */
 .landing {
   position: relative;

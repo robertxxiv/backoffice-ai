@@ -5,6 +5,7 @@ export function IngestionPage({
   handleFileIngest,
   handlePayloadIngest,
   metadataText,
+  notice,
   payloadText,
   setMetadataText,
   setPayloadText,
@@ -19,6 +20,7 @@ export function IngestionPage({
           <h2>Capture new source material</h2>
           <p>Upload files, paste payloads, and add metadata. Manage your corpus on the <button className="link-button inline-link" onClick={() => navigate("/documents")} type="button">Documents</button> page.</p>
         </div>
+        {notice ? <div className="inline-notice inline-notice-success">{notice.message}</div> : null}
       </section>
 
       <div className="grid operational-grid">

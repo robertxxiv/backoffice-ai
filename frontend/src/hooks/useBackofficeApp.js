@@ -23,6 +23,7 @@ export function useBackofficeApp() {
   const [queryResult, setQueryResult] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [queryBusy, setQueryBusy] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState(0);
@@ -46,6 +47,14 @@ export function useBackofficeApp() {
     return () => window.clearInterval(timer);
   }, [queryBusy]);
 
+  useEffect(() => {
+    if (!notice) {
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setNotice(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+
   async function refreshDocuments() {
     const response = await fetch(`${apiUrl}/documents`);
     const payload = await response.json();
@@ -64,6 +73,7 @@ export function useBackofficeApp() {
     event.preventDefault();
     setBusy(true);
     setError("");
+    setNotice(null);
     try {
       const response = await fetch(`${apiUrl}/ingest`, {
         method: "POST",
@@ -77,9 +87,15 @@ export function useBackofficeApp() {
       if (!response.ok) {
         throw new Error(await readError(response));
       }
+      const payload = await response.json();
+      setNotice({
+        tone: "success",
+        message: buildIngestNotice(payload),
+      });
       await refreshDocuments();
     } catch (caught) {
       setError(caught.message);
+      setNotice(null);
     } finally {
       setBusy(false);
     }
@@ -92,6 +108,7 @@ export function useBackofficeApp() {
     }
     setBusy(true);
     setError("");
+    setNotice(null);
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -103,10 +120,16 @@ export function useBackofficeApp() {
       if (!response.ok) {
         throw new Error(await readError(response));
       }
+      const payload = await response.json();
+      setNotice({
+        tone: "success",
+        message: buildIngestNotice(payload),
+      });
       await refreshDocuments();
       event.target.value = "";
     } catch (caught) {
       setError(caught.message);
+      setNotice(null);
     } finally {
       setBusy(false);
     }
@@ -115,6 +138,7 @@ export function useBackofficeApp() {
   async function handleReindex(documentId = null) {
     setBusy(true);
     setError("");
+    setNotice(null);
     try {
       const response = await fetch(`${apiUrl}/reindex`, {
         method: "POST",
@@ -132,9 +156,14 @@ export function useBackofficeApp() {
       }
       const payload = await response.json();
       setJobs(payload.jobs);
+      setNotice({
+        tone: "success",
+        message: buildReindexNotice(payload.jobs),
+      });
       await refreshDocuments();
     } catch (caught) {
       setError(caught.message);
+      setNotice(null);
     } finally {
       setBusy(false);
     }
@@ -150,6 +179,7 @@ export function useBackofficeApp() {
     setBusy(true);
     setDeletingDocumentId(document.id);
     setError("");
+    setNotice(null);
     try {
       const response = await fetch(`${apiUrl}/documents/${document.id}`, {
         method: "DELETE",
@@ -159,9 +189,14 @@ export function useBackofficeApp() {
       }
       setJobs((currentJobs) => currentJobs.filter((job) => job.document_id !== document.id));
       setQueryResult(null);
+      setNotice({
+        tone: "success",
+        message: `Deleted "${document.source_ref}" from the indexed corpus.`,
+      });
       await refreshDocuments();
     } catch (caught) {
       setError(caught.message);
+      setNotice(null);
     } finally {
       setDeletingDocumentId(null);
       setBusy(false);
@@ -173,6 +208,7 @@ export function useBackofficeApp() {
     setBusy(true);
     setQueryBusy(true);
     setError("");
+    setNotice(null);
     setQueryResult(null);
     try {
       const response = await fetch(`${apiUrl}/query`, {
@@ -208,6 +244,7 @@ export function useBackofficeApp() {
     jobs,
     loadingPhase,
     metadataText,
+    notice,
     payloadText,
     queryBusy,
     queryForm,
@@ -216,6 +253,7 @@ export function useBackofficeApp() {
     stats: buildStats(documents),
     setError,
     setMetadataText,
+    setNotice,
     setPayloadText,
     setQueryForm,
     setShowAdvanced,
@@ -227,4 +265,27 @@ export function useBackofficeApp() {
     refreshDocuments,
     refreshHealth,
   };
+}
+
+function buildIngestNotice(payload) {
+  const actionLabel = payload.lifecycle_action === "updated"
+    ? "updated"
+    : payload.lifecycle_action === "unchanged"
+      ? "checked"
+      : "ingested";
+  const staleHint = payload.is_index_stale ? " Reindex it to make it searchable." : "";
+  return `${payload.source_ref} ${actionLabel} successfully.${staleHint}`;
+}
+
+function buildReindexNotice(jobs) {
+  if (!jobs?.length) {
+    return "Reindex request completed.";
+  }
+  if (jobs.length === 1) {
+    return jobs[0].status === "completed"
+      ? "Document reindexed successfully."
+      : `Reindex job created with status: ${jobs[0].status}.`;
+  }
+  const completed = jobs.filter((job) => job.status === "completed").length;
+  return `${completed} of ${jobs.length} document jobs completed successfully.`;
 }

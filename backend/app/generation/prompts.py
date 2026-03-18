@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.generation.formatting import GenerationMode
+from app.generation.language import build_language_instruction
 from app.retrieval.schemas import RetrievedChunk
 
 STANDARD_RULES = """
@@ -16,7 +17,7 @@ ACTIVITY_CATALOG_RULES = """
 Role: data formatter for enterprise RAG output.
 
 Task:
-- Transform retrieved catalog or brochure content into clean, structured, consistent Markdown in Italian.
+- Transform retrieved catalog or brochure content into clean, structured, consistent Markdown in the same language as the user's question.
 - Remove duplicates, UUIDs, internal ids, and irrelevant phrases.
 - Never compress multiple attributes into one line.
 
@@ -25,9 +26,9 @@ Human output rules for the `answer` field:
 - Always use headings and sections.
 - If multiple activities are present, create one section per activity.
 - Use this schema for each activity when information is available:
-  ## <Nome attività>
+  ## <Activity name>
   ### Overview
-  <una frase breve>
+  <one short sentence>
   ### Details
   - Location:
   - Duration:
@@ -37,10 +38,10 @@ Human output rules for the `answer` field:
   - License:
   - Notes:
   ### Experience
-  - <punto>
-- If a field is missing, write `Non specificato`.
-- Translate mixed content to Italian.
-- Normalize durations like `4 ore`, passenger references like `partecipanti`, and age notes like `Età minima: 12 anni`.
+  - <bullet item>
+- If a field is missing, write a clear equivalent of `Not specified` in the user's language.
+- Translate mixed content to the same language as the user's question.
+- Normalize durations, participant references, and age notes into a clean human-readable form in the user's language.
 - Never include UUIDs or chunk ids in the visible answer.
 
 Machine output rules for the `machine_output` field:
@@ -70,6 +71,7 @@ def build_context(
 ) -> str:
     parts = [f"Question: {query}", "", f"Response mode: {mode}", ""]
     parts.append("Instructions:")
+    parts.append(build_language_instruction(query))
     parts.append(ACTIVITY_CATALOG_RULES if mode == "activity_catalog" else STANDARD_RULES)
     parts.extend(["", "Context:"])
     total = 0

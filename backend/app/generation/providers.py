@@ -7,6 +7,11 @@ from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
 
 from app.core.config import Settings
 from app.generation.formatting import GenerationMode
+from app.generation.language import (
+    catalog_content_label,
+    extracted_activity_overview,
+    missing_value_label,
+)
 from app.providers.errors import ProviderRequestError
 
 
@@ -17,6 +22,8 @@ class GenerationProvider(Protocol):
 
 class MockGenerationProvider:
     def generate(self, prompt: str, mode: GenerationMode = "standard") -> dict[str, object]:
+        query = _extract_question(prompt)
+        missing = missing_value_label(query)
         citations = [line[1:37] for line in prompt.splitlines() if line.startswith("[")][:3]
         excerpts = _extract_excerpts(prompt)
         answer = "## Answer\n\nNo indexed context was found."
@@ -26,7 +33,7 @@ class MockGenerationProvider:
                 machine_output = {
                     "activities": [
                         {
-                            "activity": excerpts[0] if excerpts else "Non specificato",
+                            "activity": excerpts[0] if excerpts else missing,
                             "location": None,
                             "duration": None,
                             "environment": None,
@@ -36,19 +43,19 @@ class MockGenerationProvider:
                 }
                 answer = (
                     "# HUMAN OUTPUT\n\n"
-                    "## Attività estratta\n\n"
+                    "## Extracted activity\n\n"
                     "### Overview\n"
-                    "Sintesi dell'attività trovata nel contenuto indicizzato.\n\n"
+                    f"{extracted_activity_overview(query)}\n\n"
                     "### Details\n"
-                    "- Location: Non specificato\n"
-                    "- Duration: Non specificato\n"
-                    "- Environment: Non specificato\n\n"
+                    f"- Location: {missing}\n"
+                    f"- Duration: {missing}\n"
+                    f"- Environment: {missing}\n\n"
                     "### Requirements\n"
-                    "- Age: Non specificato\n"
-                    "- License: Non specificato\n"
-                    "- Notes: Non specificato\n\n"
+                    f"- Age: {missing}\n"
+                    f"- License: {missing}\n"
+                    f"- Notes: {missing}\n\n"
                     "### Experience\n"
-                    f"- {excerpts[0] if excerpts else 'Contenuto disponibile nel catalogo.'}"
+                    f"- {excerpts[0] if excerpts else catalog_content_label(query)}"
                 )
             else:
                 bullets = "\n".join(f"- {excerpt}" for excerpt in excerpts) or "- No indexed context was found."
@@ -126,6 +133,7 @@ class OpenAIGenerationProvider:
                     "Answer only from the provided context. "
                     "Return valid JSON matching the schema. "
                     "Write visible output only in the `answer` field as Markdown. "
+                    "Write the visible answer in the same language as the user's question. "
                     "Never expose UUIDs, chunk ids, or internal ids in the visible answer. "
                     "Use the `citations` array for source references. "
                     "Use `machine_output` for structured extraction data when the prompt requests it."
@@ -165,6 +173,13 @@ def _extract_excerpts(prompt: str) -> list[str]:
     lines = [line.strip() for line in prompt.splitlines() if line and not line.startswith("Question:")]
     excerpts = [line[:180] for line in lines if not line.startswith("[") and line != "Context:"]
     return excerpts[:3]
+
+
+def _extract_question(prompt: str) -> str:
+    for line in prompt.splitlines():
+        if line.startswith("Question: "):
+            return line.removeprefix("Question: ").strip()
+    return ""
 
 
 def _status_message(stage: str, status_code: int | None) -> str:

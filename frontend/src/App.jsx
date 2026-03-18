@@ -44,6 +44,7 @@ function AppRoutes() {
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
               {app.error ? <div className="error">{app.error}</div> : null}
+              {app.notice ? <div className={`notice notice-${app.notice.tone}`}>{app.notice.message}</div> : null}
             </AppShell>
           }
         />
