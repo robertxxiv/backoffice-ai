@@ -3,6 +3,7 @@
 Production-oriented first beta of a modular RAG decision support system.
 
 Full project documentation is available in the [wiki](/home/roberto/rag-system/wiki/Home.md).
+Detailed HTTP endpoint documentation with request and response examples is available in [wiki/API-Reference.md](/home/roberto/rag-system/wiki/API-Reference.md).
 
 ## Architecture
 
