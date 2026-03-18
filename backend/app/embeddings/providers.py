@@ -4,9 +4,10 @@ import hashlib
 import math
 from typing import Protocol
 
-from openai import OpenAI
+from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
 
 from app.core.config import Settings
+from app.providers.errors import ProviderRequestError
 
 
 class EmbeddingProvider(Protocol):
@@ -46,5 +47,36 @@ class OpenAIEmbeddingProvider:
         self._model = settings.embedding_model
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
-        response = self._client.embeddings.create(model=self._model, input=texts)
+        try:
+            response = self._client.embeddings.create(model=self._model, input=texts)
+        except APITimeoutError as exc:
+            raise ProviderRequestError(
+                stage="embedding",
+                reason="timeout",
+                message="The embedding request timed out. Try a shorter query or retry shortly.",
+            ) from exc
+        except APIConnectionError as exc:
+            raise ProviderRequestError(
+                stage="embedding",
+                reason="connection",
+                message="The embedding provider could not be reached. Check network connectivity and upstream availability.",
+            ) from exc
+        except APIStatusError as exc:
+            raise ProviderRequestError(
+                stage="embedding",
+                reason="status",
+                message=_status_message("embedding", exc.status_code),
+            ) from exc
         return [item.embedding for item in response.data]
+
+
+def _status_message(stage: str, status_code: int | None) -> str:
+    if status_code == 401:
+        return f"The {stage} provider rejected the API key."
+    if status_code == 403:
+        return f"The configured account does not have access to the {stage} model."
+    if status_code == 429:
+        return f"The {stage} provider rate limit was reached. Retry shortly."
+    if status_code == 400:
+        return f"The {stage} request was rejected by the provider. Check the request size and payload."
+    return f"The {stage} provider returned an unexpected status error."

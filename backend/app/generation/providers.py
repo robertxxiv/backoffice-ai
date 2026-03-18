@@ -3,10 +3,11 @@ from __future__ import annotations
 import json
 from typing import Any, Protocol
 
-from openai import OpenAI
+from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
 
 from app.core.config import Settings
 from app.generation.formatting import GenerationMode
+from app.providers.errors import ProviderRequestError
 
 
 class GenerationProvider(Protocol):
@@ -118,26 +119,45 @@ class OpenAIGenerationProvider:
             "required": ["answer", "citations", "machine_output"],
             "additionalProperties": False,
         }
-        response = self._client.responses.create(
-            model=self._model,
-            instructions=(
-                "Answer only from the provided context. "
-                "Return valid JSON matching the schema. "
-                "Write visible output only in the `answer` field as Markdown. "
-                "Never expose UUIDs, chunk ids, or internal ids in the visible answer. "
-                "Use the `citations` array for source references. "
-                "Use `machine_output` for structured extraction data when the prompt requests it."
-            ),
-            input=prompt,
-            text={
-                "format": {
-                    "type": "json_schema",
-                    "name": "rag_answer",
-                    "strict": True,
-                    "schema": schema,
-                }
-            },
-        )
+        try:
+            response = self._client.responses.create(
+                model=self._model,
+                instructions=(
+                    "Answer only from the provided context. "
+                    "Return valid JSON matching the schema. "
+                    "Write visible output only in the `answer` field as Markdown. "
+                    "Never expose UUIDs, chunk ids, or internal ids in the visible answer. "
+                    "Use the `citations` array for source references. "
+                    "Use `machine_output` for structured extraction data when the prompt requests it."
+                ),
+                input=prompt,
+                text={
+                    "format": {
+                        "type": "json_schema",
+                        "name": "rag_answer",
+                        "strict": True,
+                        "schema": schema,
+                    }
+                },
+            )
+        except APITimeoutError as exc:
+            raise ProviderRequestError(
+                stage="generation",
+                reason="timeout",
+                message="The answer generation request timed out. Try a shorter question or retry shortly.",
+            ) from exc
+        except APIConnectionError as exc:
+            raise ProviderRequestError(
+                stage="generation",
+                reason="connection",
+                message="The answer generation provider could not be reached. Check network connectivity and upstream availability.",
+            ) from exc
+        except APIStatusError as exc:
+            raise ProviderRequestError(
+                stage="generation",
+                reason="status",
+                message=_status_message("generation", exc.status_code),
+            ) from exc
         return json.loads(response.output_text)
 
 
@@ -145,3 +165,15 @@ def _extract_excerpts(prompt: str) -> list[str]:
     lines = [line.strip() for line in prompt.splitlines() if line and not line.startswith("Question:")]
     excerpts = [line[:180] for line in lines if not line.startswith("[") and line != "Context:"]
     return excerpts[:3]
+
+
+def _status_message(stage: str, status_code: int | None) -> str:
+    if status_code == 401:
+        return f"The {stage} provider rejected the API key."
+    if status_code == 403:
+        return f"The configured account does not have access to the {stage} model."
+    if status_code == 429:
+        return f"The {stage} provider rate limit was reached. Retry shortly."
+    if status_code == 400:
+        return f"The {stage} request was rejected by the provider. Check the request size and prompt constraints."
+    return f"The {stage} provider returned an unexpected status error."

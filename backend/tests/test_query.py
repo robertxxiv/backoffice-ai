@@ -6,6 +6,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.providers.errors import ProviderRequestError
 
 
 class QueryApiTests(unittest.TestCase):
@@ -111,6 +112,27 @@ class QueryApiTests(unittest.TestCase):
         self.assertEqual(
             response.json()["detail"],
             "The query could not be completed. Check the API logs for details.",
+        )
+
+    def test_query_returns_specific_provider_timeout_message(self) -> None:
+        class FailingGenerationService:
+            def generate_answer(self, query: str, chunks: list[object]) -> dict[str, object]:
+                raise ProviderRequestError(
+                    stage="generation",
+                    reason="timeout",
+                    message="The answer generation request timed out. Try a shorter question or retry shortly.",
+                )
+
+        with patch("app.api.router.build_generation_service", return_value=FailingGenerationService()):
+            response = self.client.post(
+                "/query",
+                json={"query": "What is in the catalog?", "top_k": 5, "filters": {}},
+            )
+
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(
+            response.json()["detail"],
+            "The answer generation request timed out. Try a shorter question or retry shortly.",
         )
 
 

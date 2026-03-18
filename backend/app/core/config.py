@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     app_name: str = "Backoffice AI"
     database_url: str = "postgresql+psycopg://postgres:postgres@db:5432/rag_system"
-    request_timeout_seconds: int = 15
+    request_timeout_seconds: int = 45
     embedding_provider: Literal["mock", "openai"] = "mock"
     generation_provider: Literal["mock", "openai"] = "mock"
     openai_api_key: str | None = None

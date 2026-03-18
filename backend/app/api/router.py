@@ -31,6 +31,7 @@ from app.indexing.service import IndexingService
 from app.ingestion.schemas import IngestRequest, IngestResponse
 from app.ingestion.service import IngestionService
 from app.metadata import normalize_metadata
+from app.providers.errors import ProviderRequestError
 from app.retrieval.service import RetrievalService
 
 router = APIRouter()
@@ -254,12 +255,15 @@ def _raise_query_exception(exc: Exception) -> None:
     logger.exception("query_request_failed")
     if isinstance(exc, ValueError):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if isinstance(exc, ProviderRequestError):
+        logger.error("provider_request_error stage=%s reason=%s", exc.stage, exc.reason)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=exc.message) from exc
     if isinstance(exc, httpx.HTTPError) or exc.__class__.__module__.startswith("openai"):
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=(
-                "The AI provider request failed. "
-                "Check provider credentials, model access, and upstream availability."
+                "The AI provider request failed unexpectedly. "
+                "Check the API logs for the failing provider stage."
             ),
         ) from exc
     raise HTTPException(
