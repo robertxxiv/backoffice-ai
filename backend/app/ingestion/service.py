@@ -3,8 +3,6 @@ from __future__ import annotations
 import hashlib
 from datetime import datetime, timezone
 from typing import Any
-
-import httpx
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
@@ -13,6 +11,7 @@ from app.db.models import Chunk, Document, Embedding, IndexJob
 from app.ingestion.extractors import detect_content_type, extract_payload_text, extract_text
 from app.ingestion.normalizers import normalize_text
 from app.ingestion.schemas import ExtractedDocument, IngestRequest, IngestResponse
+from app.ingestion.url_guard import SafeUrlFetcher
 from app.metadata import normalize_metadata
 
 
@@ -55,9 +54,9 @@ class IngestionService:
         return self._persist(extracted, session)
 
     def _fetch_url(self, url: str, metadata: dict[str, Any]) -> ExtractedDocument:
-        response = httpx.get(url, timeout=self._settings.request_timeout_seconds, follow_redirects=True)
+        final_url, response = SafeUrlFetcher(self._settings).fetch(url)
         response.raise_for_status()
-        content_type = detect_content_type(url, response.headers.get("content-type"))
+        content_type = detect_content_type(final_url, response.headers.get("content-type"))
         content = extract_text(response.content, content_type)
         return ExtractedDocument(
             source_type="url",

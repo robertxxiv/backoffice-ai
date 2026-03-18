@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     app_name: str = "Backoffice AI"
     database_url: str = "postgresql+psycopg://postgres:postgres@db:5432/rag_system"
     request_timeout_seconds: int = 45
+    url_ingest_allowed_domains: list[str] = []
+    url_ingest_max_redirects: int = 5
     embedding_provider: Literal["mock", "openai"] = "mock"
     generation_provider: Literal["mock", "openai"] = "mock"
     openai_api_key: str | None = None
