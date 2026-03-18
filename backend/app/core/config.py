@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = "Backoffice AI"
-    database_url: str = "postgresql+psycopg://postgres:postgres@db:5432/rag_system"
+    database_url: str = "sqlite+pysqlite:///./backoffice_ai.db"
     request_timeout_seconds: int = 45
     url_ingest_allowed_domains: list[str] = []
     url_ingest_max_redirects: int = 5

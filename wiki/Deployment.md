@@ -62,7 +62,10 @@ cp .env.example .env
 `.env`
 
 ```bash
-DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/rag_system
+POSTGRES_DB=rag_system
+POSTGRES_USER=backofficeai
+POSTGRES_PASSWORD=change-this-password
+DATABASE_URL=postgresql+psycopg://backofficeai:change-this-password@db:5432/rag_system
 EMBEDDING_PROVIDER=mock
 GENERATION_PROVIDER=mock
 OPENAI_API_KEY=
@@ -90,6 +93,7 @@ Important:
 
 - the API key stays server-side only
 - the frontend never needs the OpenAI key
+- change `POSTGRES_PASSWORD` before first deployment
 
 ## 5. PostgreSQL Setup and Configuration
 
@@ -108,7 +112,7 @@ What you need to do:
 2. keep `DATABASE_URL` set to:
 
 ```bash
-DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/rag_system
+DATABASE_URL=postgresql+psycopg://backofficeai:change-this-password@db:5432/rag_system
 ```
 
 3. start the stack with:
@@ -130,7 +134,13 @@ Fresh-install notes:
 
 - you do not need to run `CREATE DATABASE` manually in this mode
 - you do not need to install PostgreSQL on the host in this mode
+- PostgreSQL is reachable only inside the Docker network by default
 - backups still matter because the database volume is persistent
+- if you need an admin shell, use:
+
+```bash
+docker compose exec db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+```
 
 ### Case B: existing PostgreSQL installation
 
@@ -168,6 +178,7 @@ Important behavior with the current `docker-compose.yml`:
 - the local `db` container may still start because `api` and `worker` depend on it
 - this is acceptable even if unused
 - the API and worker will use whatever database is in `DATABASE_URL`
+- the bundled `db` service is no longer published on host port `5432` by default
 
 That means an external PostgreSQL deployment works immediately by changing `DATABASE_URL`, even if the bundled `db` service is still present.
 

@@ -61,6 +61,8 @@ flowchart LR
 ## Run with Docker
 
 ```bash
+cp .env.example .env
+# edit .env and set POSTGRES_PASSWORD before first start
 docker compose up --build
 ```
 
@@ -68,7 +70,7 @@ Services:
 
 - API: `http://localhost:8000`
 - Frontend: `http://localhost:3000`
-- PostgreSQL: `localhost:5432`
+- PostgreSQL: internal to the Docker network by default
 
 Frontend API resolution:
 
@@ -93,6 +95,12 @@ export OPENAI_BASE_URL=https://api.openai.com/v1
 ```
 
 You can also start from [`.env.example`](/home/roberto/rag-system/.env.example).
+
+Database notes:
+
+- PostgreSQL credentials are now environment-driven
+- the bundled `db` service is not published on host port `5432` by default
+- for admin access, use `docker compose exec db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"`
 
 ## Migrations
 
