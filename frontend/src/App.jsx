@@ -46,6 +46,7 @@ export default function App() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [queryBusy, setQueryBusy] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState(0);
+  const [deletingDocumentId, setDeletingDocumentId] = useState(null);
 
   useEffect(() => {
     void refreshDocuments();
@@ -146,6 +147,34 @@ export default function App() {
     } catch (caught) {
       setError(caught.message);
     } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDeleteDocument(document) {
+    const confirmed = window.confirm(
+      `Delete "${document.source_ref}" from the RAG index? This removes the document, chunks, embeddings, and related indexing jobs.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+    setBusy(true);
+    setDeletingDocumentId(document.id);
+    setError("");
+    try {
+      const response = await fetch(`${apiUrl}/documents/${document.id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        throw new Error(await readError(response));
+      }
+      setJobs((currentJobs) => currentJobs.filter((job) => job.document_id !== document.id));
+      setQueryResult(null);
+      await refreshDocuments();
+    } catch (caught) {
+      setError(caught.message);
+    } finally {
+      setDeletingDocumentId(null);
       setBusy(false);
     }
   }
@@ -280,14 +309,24 @@ export default function App() {
                     {document.chunk_count} chunks | {document.embedding_count} embeddings
                   </small>
                 </div>
-                <button
-                  className="ghost-button"
-                  disabled={busy}
-                  onClick={() => handleReindex(document.id)}
-                  type="button"
-                >
-                  Reindex
-                </button>
+                <div className="item-actions">
+                  <button
+                    className="ghost-button"
+                    disabled={busy}
+                    onClick={() => handleReindex(document.id)}
+                    type="button"
+                  >
+                    Reindex
+                  </button>
+                  <button
+                    className="ghost-button danger-button"
+                    disabled={busy}
+                    onClick={() => handleDeleteDocument(document)}
+                    type="button"
+                  >
+                    {deletingDocumentId === document.id ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
               </article>
             ))}
             {documents.length === 0 ? <p className="empty-state">No documents yet.</p> : null}

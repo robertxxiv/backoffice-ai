@@ -372,6 +372,17 @@ label {
   background: rgba(14, 28, 35, 0.9);
 }
 
+.danger-button {
+  border-color: rgba(209, 109, 117, 0.24);
+  color: #efc3c7;
+}
+
+.danger-button:hover:not(:disabled) {
+  border-color: rgba(209, 109, 117, 0.45);
+  background: rgba(42, 18, 22, 0.9);
+  color: #ffd7db;
+}
+
 .link-button {
   justify-self: start;
   padding: 0;
@@ -420,6 +431,13 @@ label {
   border-radius: 22px;
   background: linear-gradient(180deg, rgba(17, 31, 38, 0.9), rgba(10, 21, 28, 0.96));
   padding: 1rem 1rem 1rem 1.05rem;
+}
+
+.item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.65rem;
 }
 
 .item-copy,

@@ -4,6 +4,7 @@ Production-oriented first beta of a modular RAG decision support system.
 
 Full project documentation is available in the [wiki](/home/roberto/rag-system/wiki/Home.md).
 Detailed HTTP endpoint documentation with request and response examples is available in [wiki/API-Reference.md](/home/roberto/rag-system/wiki/API-Reference.md).
+Technical design notes can live under [docs/](/home/roberto/rag-system/docs).
 
 ## Architecture
 
@@ -357,7 +358,7 @@ You can estimate cost from the command line:
     /retrieval
 /frontend
 /docker-compose.yml
-/PLANV1.md
+/docs
 ```
 
 ## Document lifecycle
