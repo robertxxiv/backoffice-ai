@@ -30,6 +30,8 @@ The system currently provides:
 - embeddings with `mock` or `OpenAI` providers
 - PostgreSQL + `pgvector` retrieval
 - grounded answer generation with citations
+- bearer-token authentication with seeded initial admin access
+- admin user management from the API and frontend settings page
 - metadata normalization for `category` with `domain` and `type` fallback
 - Markdown answer rendering in the frontend
 - structured `machine_output` for catalog-oriented formatting flows
@@ -53,13 +55,12 @@ The current beta frontend is organized into these views:
 
 These areas are not implemented yet:
 
-- user authentication
-- role-based permissions
 - Excel workbook ingestion
 - OCR for scanned PDFs
 - reranking
 - streaming query responses
 - advanced evaluation dashboards
+- per-document access control and tenant isolation
 
 ## Recommended Reading Order
 

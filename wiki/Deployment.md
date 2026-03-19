@@ -112,7 +112,7 @@ Important:
 - set `TRUSTED_HOSTS` to the exact hostnames or LAN IPs users will use to access the API
 - set `CORS_ORIGINS` to the exact frontend origins users will open in the browser
 - keep `CORS_ORIGIN_REGEX` empty unless you have a deliberate development-only reason to widen origin matching
-- keep `CORS_ALLOW_CREDENTIALS=false` until a real auth/session model is introduced
+- keep `CORS_ALLOW_CREDENTIALS=false` unless you intentionally move to a cookie-based session model
 - CORS remains header-based; the frontend sends bearer tokens to the API
 - API docs are disabled by default in this hardened setup; enable them only when needed
 - oversize ingest requests now fail with `413`; tune the `MAX_*_BYTES` values only if your document policy requires it
@@ -322,8 +322,9 @@ You can access the system remotely, but you need to distinguish between:
 
 Important current limitation:
 
-- this project does **not** implement authentication yet
-- do **not** expose the API or frontend directly to the public internet without an access control layer in front of it
+- this project now implements bearer-token authentication and basic admin/user role separation
+- it still does **not** provide per-document access control, tenant isolation, or built-in TLS termination
+- do **not** expose the API or frontend directly to the public internet without HTTPS and an external access-control pattern in front of it
 
 ### Case A: remote access on the same private network
 
@@ -407,9 +408,9 @@ Frontend behavior note:
 
 ### Case B: remote access from the public internet
 
-This is technically possible, but in the current project state it is **not recommended** to expose the stack directly because there is no built-in auth yet.
+This is technically possible, but in the current project state it is still **not recommended** to expose the stack directly.
 
-If you must allow remote internet access before auth is implemented, put a protective layer in front of the app.
+If you must allow remote internet access, put a protective layer in front of the app.
 
 Recommended minimum options:
 
@@ -450,7 +451,7 @@ For a 3-user company, the practical recommendation is:
 3. do not expose PostgreSQL externally
 4. allow frontend and API only on the private network or VPN
 5. if offsite access is needed, use VPN first
-6. add application auth before exposing the system publicly
+6. keep application auth enabled and add HTTPS plus an external protection layer before exposing the system publicly
 
 ### Remote access verification checklist
 
@@ -694,8 +695,8 @@ For a 3-user company deployment, the current recommended approach is:
 
 Not yet implemented:
 
-- authentication
-- authorization
+- per-document authorization
+- tenant isolation
 - HTTPS termination inside this repo
 
 If exposed outside a private network, add a reverse proxy and TLS in front of `frontend` and `api`.

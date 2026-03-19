@@ -160,6 +160,7 @@ Recommended sequence for changes:
 
 ## Current Development Caveats
 
-- auth is not implemented yet
+- bearer-token auth is now required for non-public routes
+- current authorization is still coarse-grained and should not be treated as multi-tenant isolation
 - SQLite is only a fallback for local dev and tests
 - production retrieval quality should be evaluated in PostgreSQL mode with real embeddings

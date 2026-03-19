@@ -38,7 +38,7 @@ Operationally:
 - `Ingestion` is for new source entry
 - `Documents` is for reindex/delete management
 - `Jobs` is for pipeline visibility
-- `Settings` is read-only runtime information
+- `Settings` is for runtime information and admin user management
 
 ## Token Usage and Cost
 
@@ -270,13 +270,12 @@ Deleting a document removes its chunks, embeddings, and related pending job stat
 
 ## Current Operational Limitation
 
-The system does not yet support:
+The current auth model does not yet support:
 
-- login
-- user permissions
 - per-document access control
+- tenant isolation
 
-Treat the deployment as trusted-internal only until auth is added.
+Treat the deployment as trusted-internal unless you have also added HTTPS and a proper external access pattern.
 
 ## Current Query Output Model
 

@@ -28,7 +28,8 @@ Example:
 - Use metadata whenever possible so retrieval can be filtered later.
 - If Backoffice.AI returns that context is insufficient, stop. Do not continue with external search unless a separate tool explicitly authorizes that behavior.
 - Expect JSON in and JSON out.
-- This API currently has no built-in auth. Use it only on a trusted internal network.
+- This API now requires bearer-token authentication for non-public endpoints.
+- Obtain a token with `POST /auth/login` and send `Authorization: Bearer <token>` on protected requests.
 
 ## Supported Workflows
 
@@ -295,6 +296,5 @@ Expose these actions inside OpenClaw:
 
 ## Constraints
 
-- This skill does not authenticate yet because Backoffice.AI currently exposes no auth layer.
 - This skill assumes Backoffice.AI is reachable on the network.
 - This skill does not handle file multipart uploads directly unless OpenClaw supports file upload actions.
