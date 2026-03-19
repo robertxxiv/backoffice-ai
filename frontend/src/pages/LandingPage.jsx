@@ -47,7 +47,7 @@ const features = [
   },
 ];
 
-export function LandingPage({ stats }) {
+export function LandingPage({ currentUser, stats }) {
   const navigate = useNavigate();
 
   return (
@@ -58,10 +58,10 @@ export function LandingPage({ stats }) {
 
       <div className="landing-content">
         <header className="landing-hero">
-          <div className="landing-badge">
+{/*           <div className="landing-badge">
             <span className="landing-badge-dot" />
             Operational Knowledge Platform
-          </div>
+          </div> */}
           <h1 className="landing-title">
             Backoffice<span className="landing-title-accent">.AI</span>
           </h1>
@@ -73,22 +73,22 @@ export function LandingPage({ stats }) {
           <div className="landing-actions">
             <button
               className="primary-button landing-cta"
-              onClick={() => navigate("/dashboard")}
+              onClick={() => navigate(currentUser ? "/dashboard" : "/login")}
               type="button"
             >
-              Enter workspace
+              {currentUser ? "Enter workspace" : "Sign in"}
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="3" y1="8" x2="13" y2="8" />
                 <polyline points="9 4 13 8 9 12" />
               </svg>
             </button>
-            <button
+{/*             <button
               className="ghost-button"
-              onClick={() => navigate("/search")}
+              onClick={() => navigate(currentUser ? "/search" : "/login")}
               type="button"
             >
-              Jump to search
-            </button>
+              {currentUser ? "Jump to search" : "Open login"}
+            </button> */}
           </div>
         </header>
 

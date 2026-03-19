@@ -13,8 +13,13 @@ Content types:
 
 Current auth model:
 
-- no authentication yet
-- treat the API as trusted-internal only
+- `GET /health` is public
+- all other operational endpoints require `Authorization: Bearer <token>`
+- admin-only endpoints:
+  - `GET /auth/users`
+  - `POST /auth/users`
+  - `GET /jobs/{job_id}`
+  - `DELETE /documents/{document_id}`
 
 ## Conventions
 
@@ -26,6 +31,26 @@ Most API errors return:
 {
   "detail": "Human-readable error message"
 }
+```
+
+### Authentication
+
+Login first:
+
+```bash
+curl -X POST http://localhost:8000/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "email": "admin@example.com",
+    "password": "change-this-admin-password"
+  }'
+```
+
+Use the returned `access_token` on protected endpoints:
+
+```bash
+curl http://localhost:8000/auth/me \
+  -H "Authorization: Bearer <token>"
 ```
 
 ### Metadata behavior
@@ -78,6 +103,22 @@ curl http://localhost:8000/health
 }
 ```
 
+## `POST /auth/login`
+
+Returns an access token and the authenticated user profile.
+
+## `GET /auth/me`
+
+Returns the current authenticated user.
+
+## `GET /auth/users`
+
+Admin-only. Lists all users.
+
+## `POST /auth/users`
+
+Admin-only. Creates a new user.
+
 ## `POST /ingest`
 
 Ingests a document by file upload or JSON request.
@@ -99,6 +140,7 @@ Fields:
 
 ```bash
 curl -X POST http://localhost:8000/ingest \
+  -H "Authorization: Bearer <token>" \
   -F 'file=@catalog.pdf' \
   -F 'metadata={"type":"travel_catalog","language":"it","country":"NO"}'
 ```
@@ -107,6 +149,7 @@ curl -X POST http://localhost:8000/ingest \
 
 ```bash
 curl -X POST http://localhost:8000/ingest \
+  -H "Authorization: Bearer <token>" \
   -F 'file=@pricing-rules.md' \
   -F 'metadata={"domain":"quotes","country":"NO"}'
 ```

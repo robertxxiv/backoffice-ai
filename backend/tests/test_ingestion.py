@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from app.core.config import Settings
 from app.main import create_app
 from app.main import app
+from tests import auth_headers
 
 
 class IngestionApiTests(unittest.TestCase):
@@ -14,6 +15,7 @@ class IngestionApiTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.client_manager = TestClient(app)
         cls.client = cls.client_manager.__enter__()
+        cls.headers = auth_headers(cls.client)
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -27,7 +29,7 @@ class IngestionApiTests(unittest.TestCase):
     def test_ingest_markdown_file(self) -> None:
         files = {"file": ("quote.md", b"# Quote\n\nSeasonal pricing applies.", "text/markdown")}
         data = {"metadata": '{"customer":"acme"}'}
-        response = self.client.post("/ingest", files=files, data=data)
+        response = self.client.post("/ingest", files=files, data=data, headers=self.headers)
         payload = response.json()
         self.assertEqual(response.status_code, 201)
         self.assertEqual(payload["source_type"], "file")
@@ -44,6 +46,7 @@ class IngestionApiTests(unittest.TestCase):
                 "metadata": {"source": "api"},
                 "source_name": "pricing-dump",
             },
+            headers=self.headers,
         )
         payload = response.json()
         self.assertEqual(response.status_code, 201)
@@ -58,6 +61,7 @@ class IngestionApiTests(unittest.TestCase):
                 "metadata": {"type": "travel_catalog", "language": "it"},
                 "source_name": "nordikae-catalog",
             },
+            headers=self.headers,
         )
         payload = response.json()
         self.assertEqual(response.status_code, 201)
@@ -66,7 +70,7 @@ class IngestionApiTests(unittest.TestCase):
 
     def test_rejects_unsupported_upload(self) -> None:
         files = {"file": ("notes.txt", b"plain text", "text/plain")}
-        response = self.client.post("/ingest", files=files)
+        response = self.client.post("/ingest", files=files, headers=self.headers)
         self.assertEqual(response.status_code, 400)
 
 
@@ -78,11 +82,15 @@ class IngestionLimitTests(unittest.TestCase):
     def test_rejects_oversized_json_payload(self) -> None:
         application = create_app(
             Settings(
+                auth_secret_key="test-auth-secret",
+                initial_admin_email="admin@example.com",
+                initial_admin_password="admin-password",
                 trusted_hosts=["testserver"],
                 max_ingest_json_bytes=64,
             )
         )
         with TestClient(application) as client:
+            headers = auth_headers(client)
             response = client.post(
                 "/ingest",
                 json={
@@ -90,6 +98,7 @@ class IngestionLimitTests(unittest.TestCase):
                     "metadata": {"source": "test"},
                     "source_name": "too-large-json",
                 },
+                headers=headers,
             )
         self.assertEqual(response.status_code, 413)
         self.assertIn("size limit", response.json()["detail"].lower())
@@ -97,13 +106,17 @@ class IngestionLimitTests(unittest.TestCase):
     def test_rejects_oversized_file_upload(self) -> None:
         application = create_app(
             Settings(
+                auth_secret_key="test-auth-secret",
+                initial_admin_email="admin@example.com",
+                initial_admin_password="admin-password",
                 trusted_hosts=["testserver"],
                 max_ingest_request_bytes=1024,
                 max_upload_file_bytes=16,
             )
         )
         with TestClient(application) as client:
+            headers = auth_headers(client)
             files = {"file": ("large.md", b"x" * 64, "text/markdown")}
-            response = client.post("/ingest", files=files)
+            response = client.post("/ingest", files=files, headers=headers)
         self.assertEqual(response.status_code, 413)
         self.assertIn("size limit", response.json()["detail"].lower())

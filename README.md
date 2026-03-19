@@ -48,6 +48,10 @@ flowchart LR
 - source-based document upserts with versioning and stale-index reset
 - `POST /ingest`
 - `GET /health`
+- `POST /auth/login`
+- `GET /auth/me`
+- `GET /auth/users`
+- `POST /auth/users`
 - `POST /documents/{id}/chunks`
 - `GET /documents/{id}/chunks`
 - `DELETE /documents/{id}`
@@ -78,7 +82,7 @@ docker buildx version
 
 ```bash
 cp .env.example .env
-# edit .env and set POSTGRES_PASSWORD before first start
+# edit .env and set POSTGRES_PASSWORD, AUTH_SECRET_KEY, and INITIAL_ADMIN_* before first start
 docker compose up --build
 ```
 
@@ -131,6 +135,8 @@ You can also start from [`.env.example`](/home/roberto/rag-system/.env.example).
 Database notes:
 
 - PostgreSQL credentials are now environment-driven
+- authentication is now required for all non-public app endpoints
+- set `AUTH_SECRET_KEY`, `INITIAL_ADMIN_EMAIL`, and `INITIAL_ADMIN_PASSWORD` before first startup
 - the bundled `db` service is not published on host port `5432` by default
 - for admin access, use `docker compose exec db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"`
 - add your server hostname or LAN IP to `TRUSTED_HOSTS` before remote use
@@ -159,6 +165,9 @@ python3 -m venv .venv
 . .venv/bin/activate
 pip install -r backend/requirements.txt
 export DATABASE_URL=sqlite+pysqlite:///rag-system.db
+export AUTH_SECRET_KEY=change-this-auth-secret
+export INITIAL_ADMIN_EMAIL=admin@example.com
+export INITIAL_ADMIN_PASSWORD=change-this-admin-password
 cd backend
 PYTHONPATH=. uvicorn app.main:app --reload
 ```

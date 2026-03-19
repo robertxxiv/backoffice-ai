@@ -6,6 +6,7 @@ export function DocumentsPage({
   documents,
   handleDeleteDocument,
   handleReindex,
+  isAdmin,
 }) {
   const indexed = documents.filter((d) => d.status === "indexed").length;
   const stale = documents.filter((d) => d.status === "ingested").length;
@@ -67,14 +68,16 @@ export function DocumentsPage({
                 >
                   Reindex
                 </button>
-                <button
-                  className="ghost-button danger-button"
-                  disabled={busy}
-                  onClick={() => handleDeleteDocument(document)}
-                  type="button"
-                >
-                  {deletingDocumentId === document.id ? "Deleting\u2026" : "Delete"}
-                </button>
+                {isAdmin ? (
+                  <button
+                    className="ghost-button danger-button"
+                    disabled={busy}
+                    onClick={() => handleDeleteDocument(document)}
+                    type="button"
+                  >
+                    {deletingDocumentId === document.id ? "Deleting\u2026" : "Delete"}
+                  </button>
+                ) : null}
               </div>
             </article>
           ))}

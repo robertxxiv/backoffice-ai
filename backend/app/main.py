@@ -5,21 +5,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.router import router
+from app.auth.service import ensure_initial_admin
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging, install_request_logging
 from app.db.migrations import ensure_database_schema
-
-
-@asynccontextmanager
-async def lifespan(_: FastAPI):
-    if get_settings().run_migrations_on_startup:
-        ensure_database_schema()
-    yield
+from app.db.session import SessionLocal
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     configure_logging()
     resolved_settings = settings or get_settings()
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        if resolved_settings.run_migrations_on_startup:
+            ensure_database_schema()
+        with SessionLocal() as session:
+            ensure_initial_admin(session, resolved_settings)
+        yield
+
     application = FastAPI(
         title=resolved_settings.app_name,
         lifespan=lifespan,

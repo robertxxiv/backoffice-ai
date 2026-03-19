@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from app.core.config import Settings
 from app.ingestion.url_guard import SafeUrlFetcher
 from app.main import app
+from tests import auth_headers
 
 
 class FakeHttpClient:
@@ -33,19 +34,20 @@ class UrlIngestSecurityTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.client_manager = TestClient(app)
         cls.client = cls.client_manager.__enter__()
+        cls.headers = auth_headers(cls.client)
 
     @classmethod
     def tearDownClass(cls) -> None:
         cls.client_manager.__exit__(None, None, None)
 
     def test_blocks_loopback_ip_ingest(self) -> None:
-        response = self.client.post("/ingest", json={"url": "http://127.0.0.1/private"})
+        response = self.client.post("/ingest", json={"url": "http://127.0.0.1/private"}, headers=self.headers)
         self.assertEqual(response.status_code, 400)
         self.assertIn("blocked", response.json()["detail"].lower())
 
     def test_blocks_private_hostname_resolution(self) -> None:
         with patch.object(SafeUrlFetcher, "_resolve_ip_addresses", return_value={ip_address("10.0.0.5")}):
-            response = self.client.post("/ingest", json={"url": "http://internal.example.test/report"})
+            response = self.client.post("/ingest", json={"url": "http://internal.example.test/report"}, headers=self.headers)
         self.assertEqual(response.status_code, 400)
         self.assertIn("private", response.json()["detail"].lower())
 

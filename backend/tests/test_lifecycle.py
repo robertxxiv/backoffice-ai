@@ -5,6 +5,7 @@ import unittest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from tests import auth_headers
 
 
 class DocumentLifecycleTests(unittest.TestCase):
@@ -12,6 +13,7 @@ class DocumentLifecycleTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.client_manager = TestClient(app)
         cls.client = cls.client_manager.__enter__()
+        cls.headers = auth_headers(cls.client)
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -25,6 +27,7 @@ class DocumentLifecycleTests(unittest.TestCase):
                 "metadata": {"country": "NO"},
                 "source_name": "company-rules",
             },
+            headers=self.headers,
         )
         second = self.client.post(
             "/ingest",
@@ -33,6 +36,7 @@ class DocumentLifecycleTests(unittest.TestCase):
                 "metadata": {"country": "NO"},
                 "source_name": "company-rules",
             },
+            headers=self.headers,
         )
         first_payload = first.json()
         second_payload = second.json()
@@ -52,6 +56,7 @@ class DocumentLifecycleTests(unittest.TestCase):
                 "metadata": {"season": "winter"},
                 "source_name": "season-rules",
             },
+            headers=self.headers,
         )
         document_id = created.json()["document_id"]
         reindex = self.client.post(
@@ -63,6 +68,7 @@ class DocumentLifecycleTests(unittest.TestCase):
                 "chunk_size": 512,
                 "overlap_tokens": 64,
             },
+            headers=self.headers,
         )
         self.assertEqual(reindex.status_code, 202)
         updated = self.client.post(
@@ -72,6 +78,7 @@ class DocumentLifecycleTests(unittest.TestCase):
                 "metadata": {"season": "winter"},
                 "source_name": "season-rules",
             },
+            headers=self.headers,
         )
         updated_payload = updated.json()
         self.assertEqual(updated.status_code, 201)
@@ -80,7 +87,7 @@ class DocumentLifecycleTests(unittest.TestCase):
         self.assertEqual(updated_payload["lifecycle_action"], "updated")
         self.assertTrue(updated_payload["is_index_stale"])
 
-        document = self.client.get(f"/documents/{document_id}")
+        document = self.client.get(f"/documents/{document_id}", headers=self.headers)
         document_payload = document.json()
         self.assertEqual(document.status_code, 200)
         self.assertEqual(document_payload["status"], "ingested")
@@ -93,11 +100,12 @@ class DocumentLifecycleTests(unittest.TestCase):
         created = self.client.post(
             "/ingest",
             json={"payload": "temporary", "metadata": {}, "source_name": "delete-me"},
+            headers=self.headers,
         )
         document_id = created.json()["document_id"]
-        deleted = self.client.delete(f"/documents/{document_id}")
+        deleted = self.client.delete(f"/documents/{document_id}", headers=self.headers)
         self.assertEqual(deleted.status_code, 204)
-        missing = self.client.get(f"/documents/{document_id}")
+        missing = self.client.get(f"/documents/{document_id}", headers=self.headers)
         self.assertEqual(missing.status_code, 404)
 
 

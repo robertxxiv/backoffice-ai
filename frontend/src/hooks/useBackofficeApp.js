@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { emptyQuery, retrievalPhases } from "../constants.js";
-import { readError, resolveApiUrl } from "../lib/api.js";
+import { authHeaders, getStoredToken, readError, resolveApiUrl, storeToken } from "../lib/api.js";
 import {
   buildFilterOptions,
   buildQueryFilters,
@@ -12,6 +12,10 @@ import {
 const apiUrl = resolveApiUrl();
 
 export function useBackofficeApp() {
+  const [accessToken, setAccessToken] = useState(getStoredToken());
+  const [authReady, setAuthReady] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [users, setUsers] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [jobs, setJobs] = useState([]);
   const [health, setHealth] = useState(null);
@@ -21,6 +25,8 @@ export function useBackofficeApp() {
   const [metadataText, setMetadataText] = useState('{"country":"NO","domain":"quotes"}');
   const [queryForm, setQueryForm] = useState(emptyQuery);
   const [queryResult, setQueryResult] = useState(null);
+  const [loginForm, setLoginForm] = useState({ email: "", password: "" });
+  const [userForm, setUserForm] = useState({ email: "", password: "", role: "user" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState(null);
@@ -29,10 +35,56 @@ export function useBackofficeApp() {
   const [loadingPhase, setLoadingPhase] = useState(0);
   const [deletingDocumentId, setDeletingDocumentId] = useState(null);
 
+  const isAdmin = currentUser?.role === "admin";
+
   useEffect(() => {
-    void refreshDocuments();
     void refreshHealth();
   }, []);
+
+  useEffect(() => {
+    if (!accessToken) {
+      clearSessionState(false);
+      setAuthReady(true);
+      return;
+    }
+
+    let active = true;
+    void (async () => {
+      try {
+        const response = await fetch(`${apiUrl}/auth/me`, {
+          headers: authHeaders(accessToken),
+        });
+        if (!response.ok) {
+          throw new Error(await readError(response));
+        }
+        const payload = await response.json();
+        if (!active) {
+          return;
+        }
+        setCurrentUser(payload);
+        await refreshDocuments(accessToken);
+        if (payload.role === "admin") {
+          await refreshUsers(accessToken, true);
+        } else {
+          setUsers([]);
+        }
+      } catch {
+        storeToken("");
+        if (!active) {
+          return;
+        }
+        clearSessionState(false);
+      } finally {
+        if (active) {
+          setAuthReady(true);
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [accessToken]);
 
   useEffect(() => {
     if (!queryBusy) {
@@ -55,10 +107,56 @@ export function useBackofficeApp() {
     return () => window.clearTimeout(timer);
   }, [notice]);
 
-  async function refreshDocuments() {
-    const response = await fetch(`${apiUrl}/documents`);
-    const payload = await response.json();
-    setDocuments(payload);
+  const filterOptions = useMemo(() => buildFilterOptions(documents), [documents]);
+  const stats = useMemo(() => buildStats(documents), [documents]);
+
+  async function apiRequest(path, options = {}, requestOptions = {}) {
+    const { requireAuth = true } = requestOptions;
+    const headers = requireAuth
+      ? authHeaders(accessToken, options.headers || {})
+      : (options.headers || {});
+    const response = await fetch(`${apiUrl}${path}`, { ...options, headers });
+    if (response.status === 401 && requireAuth) {
+      handleLogout(false);
+      throw new Error("Your session has expired. Please sign in again.");
+    }
+    return response;
+  }
+
+  function clearSessionState(clearToken = true) {
+    if (clearToken) {
+      setAccessToken("");
+      storeToken("");
+    }
+    setCurrentUser(null);
+    setUsers([]);
+    setDocuments([]);
+    setJobs([]);
+    setQueryResult(null);
+  }
+
+  async function refreshDocuments(token = accessToken) {
+    if (!token) {
+      setDocuments([]);
+      return;
+    }
+    const response = await fetch(`${apiUrl}/documents`, { headers: authHeaders(token) });
+    if (!response.ok) {
+      throw new Error(await readError(response));
+    }
+    setDocuments(await response.json());
+  }
+
+  async function refreshUsers(token = accessToken, allow = isAdmin) {
+    if (!token || !allow) {
+      setUsers([]);
+      return;
+    }
+    const response = await fetch(`${apiUrl}/auth/users`, { headers: authHeaders(token) });
+    if (!response.ok) {
+      throw new Error(await readError(response));
+    }
+    setUsers(await response.json());
   }
 
   async function refreshHealth() {
@@ -69,13 +167,77 @@ export function useBackofficeApp() {
     setHealth(await response.json());
   }
 
+  async function handleLogin(event) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const response = await apiRequest(
+        "/auth/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(loginForm),
+        },
+        { requireAuth: false },
+      );
+      if (!response.ok) {
+        throw new Error(await readError(response));
+      }
+      const payload = await response.json();
+      storeToken(payload.access_token);
+      setAccessToken(payload.access_token);
+      setCurrentUser(payload.user);
+      setNotice({ tone: "success", message: `Signed in as ${payload.user.email}.` });
+      setLoginForm({ email: payload.user.email, password: "" });
+    } catch (caught) {
+      setError(caught.message);
+      setNotice(null);
+    } finally {
+      setBusy(false);
+      setAuthReady(true);
+    }
+  }
+
+  function handleLogout(showNotice = true) {
+    clearSessionState(true);
+    setLoginForm({ email: "", password: "" });
+    if (showNotice) {
+      setNotice({ tone: "success", message: "Signed out successfully." });
+    }
+  }
+
+  async function handleCreateUser(event) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    setNotice(null);
+    try {
+      const response = await apiRequest("/auth/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(userForm),
+      });
+      if (!response.ok) {
+        throw new Error(await readError(response));
+      }
+      await refreshUsers();
+      setUserForm({ email: "", password: "", role: "user" });
+      setNotice({ tone: "success", message: "User account created successfully." });
+    } catch (caught) {
+      setError(caught.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handlePayloadIngest(event) {
     event.preventDefault();
     setBusy(true);
     setError("");
     setNotice(null);
     try {
-      const response = await fetch(`${apiUrl}/ingest`, {
+      const response = await apiRequest("/ingest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -113,7 +275,7 @@ export function useBackofficeApp() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("metadata", metadataText);
-      const response = await fetch(`${apiUrl}/ingest`, {
+      const response = await apiRequest("/ingest", {
         method: "POST",
         body: formData,
       });
@@ -140,7 +302,7 @@ export function useBackofficeApp() {
     setError("");
     setNotice(null);
     try {
-      const response = await fetch(`${apiUrl}/reindex`, {
+      const response = await apiRequest("/reindex", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -181,7 +343,7 @@ export function useBackofficeApp() {
     setError("");
     setNotice(null);
     try {
-      const response = await fetch(`${apiUrl}/documents/${document.id}`, {
+      const response = await apiRequest(`/documents/${document.id}`, {
         method: "DELETE",
       });
       if (!response.ok) {
@@ -211,7 +373,7 @@ export function useBackofficeApp() {
     setNotice(null);
     setQueryResult(null);
     try {
-      const response = await fetch(`${apiUrl}/query`, {
+      const response = await apiRequest("/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -223,8 +385,7 @@ export function useBackofficeApp() {
       if (!response.ok) {
         throw new Error(await readError(response));
       }
-      const payload = await response.json();
-      setQueryResult(payload);
+      setQueryResult(await response.json());
     } catch (caught) {
       setError(caught.message);
     } finally {
@@ -235,35 +396,46 @@ export function useBackofficeApp() {
 
   return {
     apiUrl,
+    authReady,
     busy,
+    currentUser,
     deletingDocumentId,
     documents,
     error,
-    filterOptions: buildFilterOptions(documents),
+    filterOptions,
+    handleCreateUser,
+    handleDeleteDocument,
+    handleFileIngest,
+    handleLogin,
+    handleLogout,
+    handlePayloadIngest,
+    handleQuery,
+    handleReindex,
     health,
+    isAdmin,
     jobs,
     loadingPhase,
+    loginForm,
     metadataText,
     notice,
     payloadText,
     queryBusy,
     queryForm,
     queryResult,
-    showAdvanced,
-    stats: buildStats(documents),
+    refreshDocuments,
+    refreshHealth,
     setError,
+    setLoginForm,
     setMetadataText,
     setNotice,
     setPayloadText,
     setQueryForm,
     setShowAdvanced,
-    handleDeleteDocument,
-    handleFileIngest,
-    handlePayloadIngest,
-    handleQuery,
-    handleReindex,
-    refreshDocuments,
-    refreshHealth,
+    setUserForm,
+    showAdvanced,
+    stats,
+    userForm,
+    users,
   };
 }
 

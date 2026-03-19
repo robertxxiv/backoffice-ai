@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.chunking.schemas import ChunkRequest
 from app.chunking.service import ChunkingService
 from app.core.config import Settings
-from app.db.models import Document, IndexJob
+from app.db.models import Document, IndexJob, User
 from app.embeddings.service import EmbeddingService
 
 
@@ -30,6 +30,7 @@ class IndexingService:
         document_id: str | None,
         chunk_request: ChunkRequest,
         run_inline: bool,
+        actor_user: User,
     ) -> list[IndexJob]:
         documents = (
             [session.get(Document, document_id)]
@@ -53,6 +54,7 @@ class IndexingService:
                 document_version=document.version,
                 payload=chunk_request.model_dump(),
                 status="pending",
+                created_by_user_id=actor_user.id,
             )
             for document in filtered_documents
         ]

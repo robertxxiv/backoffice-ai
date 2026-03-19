@@ -22,6 +22,7 @@ Open:
 The beta UI is now organized as separate views:
 
 - landing page
+- login
 - dashboard
 - ingestion
 - search
@@ -39,6 +40,14 @@ From there you can:
 - jump directly to search
 
 After entering the workspace, use the sidebar navigation to move between pages.
+
+## Sign In
+
+Backoffice.AI now requires authentication for all workspace actions.
+
+- open `/login`
+- sign in with the account created by your administrator
+- after login, use the workspace normally
 
 ## 2. Ingest Content
 
@@ -158,8 +167,8 @@ Use the remaining pages like this:
 
 - `Dashboard`: overview and quick links
 - `Documents`: corpus management, reindex, delete
-- `Jobs`: recent pipeline activity
-- `Settings`: read-only runtime and limit information
+- `Jobs`: recent pipeline activity for administrators
+- `Settings`: runtime information and user management for administrators
 
 ## 9. Cost Awareness
 

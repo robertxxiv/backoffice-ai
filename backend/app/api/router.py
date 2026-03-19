@@ -20,10 +20,14 @@ from app.api.schemas import (
     ReindexRequest,
     ReindexResponse,
 )
+from app.auth.dependencies import get_admin_user, get_current_user
+from app.auth.schemas import CreateUserRequest, LoginRequest, LoginResponse, UserResponse
+from app.auth.security import create_access_token
+from app.auth.service import authenticate_user, create_user
 from app.chunking.schemas import ChunkBatchResponse, ChunkRequest
 from app.chunking.service import ChunkingService
 from app.core.config import Settings, get_settings
-from app.db.models import Chunk, Document, Embedding, IndexJob, QueryLog
+from app.db.models import Chunk, Document, Embedding, IndexJob, QueryLog, User
 from app.db.session import get_session
 from app.embeddings.service import build_embedding_service
 from app.generation.service import build_generation_service
@@ -79,12 +83,65 @@ def healthcheck(
     }
 
 
+@router.post("/auth/login", response_model=LoginResponse)
+def login(
+    payload: LoginRequest,
+    settings: Settings = Depends(get_settings),
+    session: Session = Depends(get_session),
+) -> LoginResponse:
+    if not settings.auth_secret_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication is not configured on this deployment.",
+        )
+    user = authenticate_user(session, str(payload.email), payload.password)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password.")
+    return LoginResponse(
+        access_token=create_access_token(
+            user_id=user.id,
+            role=user.role,
+            secret_key=settings.auth_secret_key,
+            ttl_minutes=settings.access_token_ttl_minutes,
+        ),
+        user=_user_response(user),
+    )
+
+
+@router.get("/auth/me", response_model=UserResponse)
+def get_authenticated_user(current_user: User = Depends(get_current_user)) -> UserResponse:
+    return _user_response(current_user)
+
+
+@router.get("/auth/users", response_model=list[UserResponse])
+def list_users(
+    session: Session = Depends(get_session),
+    _: User = Depends(get_admin_user),
+) -> list[UserResponse]:
+    users = list(session.scalars(select(User).order_by(User.created_at.asc())))
+    return [_user_response(user) for user in users]
+
+
+@router.post("/auth/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def create_user_account(
+    payload: CreateUserRequest,
+    session: Session = Depends(get_session),
+    _: User = Depends(get_admin_user),
+) -> UserResponse:
+    try:
+        user = create_user(session, email=payload.email, password=payload.password, role=payload.role)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return _user_response(user)
+
+
 @router.post("/ingest", response_model=IngestResponse, status_code=status.HTTP_201_CREATED)
 async def ingest_document(
     request: Request,
     settings: Settings = Depends(get_settings),
     session: Session = Depends(get_session),
     service: IngestionService = Depends(get_ingestion_service),
+    current_user: User = Depends(get_current_user),
 ) -> IngestResponse:
     content_type = request.headers.get("content-type", "")
     try:
@@ -94,10 +151,16 @@ async def ingest_document(
                 settings.max_ingest_request_bytes,
                 "The upload request exceeds the configured size limit.",
             )
-            return await _handle_form_ingest(request, service, session, settings.max_upload_file_bytes)
+            return await _handle_form_ingest(
+                request,
+                service,
+                session,
+                settings.max_upload_file_bytes,
+                current_user,
+            )
         if content_type.startswith("application/json"):
             payload = await _parse_json_ingest_request(request, settings.max_ingest_json_bytes)
-            return service.ingest_request(payload, session)
+            return service.ingest_request(payload, session, current_user)
     except HTTPException:
         raise
     except ValueError as exc:
@@ -111,13 +174,20 @@ async def ingest_document(
 
 
 @router.get("/documents", response_model=list[DocumentSummary])
-def list_documents(session: Session = Depends(get_session)) -> list[DocumentSummary]:
+def list_documents(
+    session: Session = Depends(get_session),
+    _: User = Depends(get_current_user),
+) -> list[DocumentSummary]:
     documents = list(session.scalars(select(Document).order_by(Document.created_at.desc())))
     return [_document_summary(document, session) for document in documents]
 
 
 @router.get("/documents/{document_id}", response_model=DocumentDetail)
-def get_document(document_id: str, session: Session = Depends(get_session)) -> DocumentDetail:
+def get_document(
+    document_id: str,
+    session: Session = Depends(get_session),
+    _: User = Depends(get_current_user),
+) -> DocumentDetail:
     document = session.get(Document, document_id)
     if document is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
@@ -134,6 +204,7 @@ def delete_document(
     document_id: str,
     session: Session = Depends(get_session),
     service: IngestionService = Depends(get_ingestion_service),
+    _: User = Depends(get_admin_user),
 ) -> Response:
     try:
         service.delete_document(document_id, session)
@@ -152,6 +223,7 @@ def create_document_chunks(
     payload: ChunkRequest,
     session: Session = Depends(get_session),
     service: ChunkingService = Depends(get_chunking_service),
+    _: User = Depends(get_current_user),
 ) -> ChunkBatchResponse:
     try:
         return service.create_chunks(document_id, payload, session)
@@ -164,6 +236,7 @@ def list_document_chunks(
     document_id: str,
     session: Session = Depends(get_session),
     service: ChunkingService = Depends(get_chunking_service),
+    _: User = Depends(get_current_user),
 ) -> ChunkBatchResponse:
     try:
         return service.list_chunks(document_id, session)
@@ -176,6 +249,7 @@ def reindex_documents(
     payload: ReindexRequest,
     session: Session = Depends(get_session),
     service: IndexingService = Depends(get_indexing_service),
+    current_user: User = Depends(get_current_user),
 ) -> ReindexResponse:
     chunk_request = ChunkRequest(
         strategy=payload.strategy,
@@ -188,6 +262,7 @@ def reindex_documents(
             document_id=payload.document_id,
             chunk_request=chunk_request,
             run_inline=payload.run_inline,
+            actor_user=current_user,
         )
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
@@ -195,7 +270,11 @@ def reindex_documents(
 
 
 @router.get("/jobs/{job_id}", response_model=JobResponse)
-def get_job(job_id: str, session: Session = Depends(get_session)) -> JobResponse:
+def get_job(
+    job_id: str,
+    session: Session = Depends(get_session),
+    _: User = Depends(get_admin_user),
+) -> JobResponse:
     job = session.get(IndexJob, job_id)
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found.")
@@ -208,6 +287,7 @@ def query_documents(
     settings: Settings = Depends(get_settings),
     session: Session = Depends(get_session),
     retrieval_service: RetrievalService = Depends(get_retrieval_service),
+    current_user: User = Depends(get_current_user),
 ) -> QueryResponse:
     try:
         chunks = retrieval_service.search(
@@ -259,6 +339,7 @@ def query_documents(
             threshold=response.trace.threshold,
             answer=response.answer,
             sources=[item.model_dump() for item in response.sources],
+            created_by_user_id=current_user.id,
         )
     )
     session.commit()
@@ -291,6 +372,7 @@ async def _handle_form_ingest(
     service: IngestionService,
     session: Session,
     max_upload_file_bytes: int,
+    current_user: User,
 ) -> IngestResponse:
     form = await request.form()
     upload = form.get("file")
@@ -305,6 +387,7 @@ async def _handle_form_ingest(
             data=data,
             metadata=metadata,
             session=session,
+            current_user=current_user,
         )
     finally:
         await upload.close()
@@ -397,6 +480,16 @@ def _job_response(job: IndexJob) -> JobResponse:
         created_at=job.created_at,
         started_at=job.started_at,
         completed_at=job.completed_at,
+    )
+
+
+def _user_response(user: User) -> UserResponse:
+    return UserResponse(
+        id=user.id,
+        email=user.email,
+        role=user.role,
+        is_active=user.is_active,
+        created_at=user.created_at,
     )
 
 

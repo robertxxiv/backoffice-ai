@@ -32,6 +32,6 @@ export const navItems = [
   { path: "/ingestion", label: "Ingestion" },
   { path: "/search", label: "Search" },
   { path: "/documents", label: "Documents" },
-  { path: "/jobs", label: "Jobs" },
-  { path: "/settings", label: "Settings" },
+  { path: "/jobs", label: "Jobs", adminOnly: true },
+  { path: "/settings", label: "Settings", adminOnly: true },
 ];

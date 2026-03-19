@@ -7,7 +7,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
-from app.db.models import Chunk, Document, Embedding, IndexJob
+from app.db.models import Chunk, Document, Embedding, IndexJob, User
 from app.ingestion.extractors import detect_content_type, extract_payload_text, extract_text
 from app.ingestion.normalizers import normalize_text
 from app.ingestion.schemas import ExtractedDocument, IngestRequest, IngestResponse
@@ -27,6 +27,7 @@ class IngestionService:
         data: bytes,
         metadata: dict[str, Any],
         session: Session,
+        current_user: User,
     ) -> IngestResponse:
         resolved_type = detect_content_type(filename, content_type)
         content = extract_text(data, resolved_type)
@@ -37,12 +38,12 @@ class IngestionService:
             content=content,
             metadata=metadata,
         )
-        return self._persist(extracted, session)
+        return self._persist(extracted, session, current_user)
 
-    def ingest_request(self, request: IngestRequest, session: Session) -> IngestResponse:
+    def ingest_request(self, request: IngestRequest, session: Session, current_user: User) -> IngestResponse:
         if request.url is not None:
             extracted = self._fetch_url(str(request.url), request.metadata)
-            return self._persist(extracted, session)
+            return self._persist(extracted, session, current_user)
         payload_text = extract_payload_text(request.payload)
         extracted = ExtractedDocument(
             source_type="payload",
@@ -51,7 +52,7 @@ class IngestionService:
             content=payload_text,
             metadata=request.metadata,
         )
-        return self._persist(extracted, session)
+        return self._persist(extracted, session, current_user)
 
     def _fetch_url(self, url: str, metadata: dict[str, Any]) -> ExtractedDocument:
         final_url, response = SafeUrlFetcher(self._settings).fetch(url)
@@ -66,7 +67,7 @@ class IngestionService:
             metadata=metadata,
         )
 
-    def _persist(self, extracted: ExtractedDocument, session: Session) -> IngestResponse:
+    def _persist(self, extracted: ExtractedDocument, session: Session, current_user: User) -> IngestResponse:
         normalized_content = normalize_text(extracted.content)
         normalized_metadata = normalize_metadata(extracted.metadata)
         content_hash = hashlib.sha256(normalized_content.encode("utf-8")).hexdigest()
@@ -84,6 +85,7 @@ class IngestionService:
                 content_hash=content_hash,
                 content=normalized_content,
                 document_metadata=normalized_metadata,
+                created_by_user_id=current_user.id,
             )
             session.add(document)
             session.commit()

@@ -21,7 +21,15 @@ function StatusDot({ value }) {
   );
 }
 
-export function SettingsPage({ apiUrl, health }) {
+export function SettingsPage({
+  apiUrl,
+  currentUser,
+  handleCreateUser,
+  health,
+  setUserForm,
+  userForm,
+  users,
+}) {
   const uploadLimits = health?.upload_limits || null;
 
   return (
@@ -41,6 +49,16 @@ export function SettingsPage({ apiUrl, health }) {
             <h2>API and provider status</h2>
           </div>
           <div className="settings-list">
+            <div className="settings-row">
+              <span>Signed-in user</span>
+              <strong style={{ fontFamily: "var(--font-mono)", fontSize: "0.82rem" }}>
+                {currentUser?.email || "unknown"}
+              </strong>
+            </div>
+            <div className="settings-row">
+              <span>Role</span>
+              <strong>{currentUser?.role || "unknown"}</strong>
+            </div>
             <div className="settings-row">
               <span>API URL</span>
               <strong style={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem" }}>{apiUrl}</strong>
@@ -92,10 +110,69 @@ export function SettingsPage({ apiUrl, health }) {
             </div>
           </div>
           <p className="panel-note">
-            Use backend environment variables for changes. This page is intentionally read-only in the current beta.
+            Runtime configuration stays environment-driven. User creation is available here for administrators.
           </p>
         </section>
       </div>
+
+      <section className="card section-card">
+        <div className="section-intro compact">
+          <p className="section-label">Users</p>
+          <h2>Manage access</h2>
+          <p>Create and review user accounts for the shared workspace.</p>
+        </div>
+
+        <div className="grid operational-grid">
+          <form onSubmit={handleCreateUser} className="stack">
+            <label>
+              <span className="field-label">Email</span>
+              <input
+                type="text"
+                value={userForm.email}
+                onChange={(event) => setUserForm({ ...userForm, email: event.target.value })}
+              />
+            </label>
+            <label>
+              <span className="field-label">Password</span>
+              <input
+                type="password"
+                value={userForm.password}
+                onChange={(event) => setUserForm({ ...userForm, password: event.target.value })}
+              />
+            </label>
+            <label>
+              <span className="field-label">Role</span>
+              <select
+                value={userForm.role}
+                onChange={(event) => setUserForm({ ...userForm, role: event.target.value })}
+              >
+                <option value="user">user</option>
+                <option value="admin">admin</option>
+              </select>
+            </label>
+            <button className="primary-button" type="submit">
+              Create user
+            </button>
+          </form>
+
+          <div className="list">
+            {users.map((user) => (
+              <article key={user.id} className="list-item">
+                <div className="item-copy">
+                  <div className="item-title-row">
+                    <strong>{user.email}</strong>
+                    <span className={`status-pill status-${user.role === "admin" ? "indexed" : "ingested"}`}>
+                      {user.role}
+                    </span>
+                  </div>
+                  <small>{user.is_active ? "active" : "inactive"}</small>
+                </div>
+              </article>
+            ))}
+            {users.length === 0 ? <p className="empty-state">No users found.</p> : null}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

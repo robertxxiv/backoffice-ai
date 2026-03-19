@@ -7,6 +7,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     app_name: str = "Backoffice AI"
     database_url: str = "sqlite+pysqlite:///./backoffice_ai.db"
+    auth_secret_key: str | None = None
+    access_token_ttl_minutes: int = 480
+    initial_admin_email: str | None = None
+    initial_admin_password: str | None = None
     request_timeout_seconds: int = 45
     max_upload_file_bytes: int = 10 * 1024 * 1024
     max_ingest_request_bytes: int = 12 * 1024 * 1024

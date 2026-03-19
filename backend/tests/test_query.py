@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.providers.errors import ProviderRequestError
+from tests import auth_headers
 
 
 class QueryApiTests(unittest.TestCase):
@@ -14,6 +15,7 @@ class QueryApiTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.client_manager = TestClient(app)
         cls.client = cls.client_manager.__enter__()
+        cls.headers = auth_headers(cls.client)
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -30,6 +32,7 @@ class QueryApiTests(unittest.TestCase):
                 "metadata": {"domain": "quotes", "country": "NO"},
                 "source_name": "pricing-rules",
             },
+            headers=self.headers,
         )
         self.assertEqual(ingest_response.status_code, 201)
         document_id = ingest_response.json()["document_id"]
@@ -43,6 +46,7 @@ class QueryApiTests(unittest.TestCase):
                 "chunk_size": 512,
                 "overlap_tokens": 64,
             },
+            headers=self.headers,
         )
         self.assertEqual(reindex_response.status_code, 202)
         self.assertEqual(reindex_response.json()["jobs"][0]["status"], "completed")
@@ -50,6 +54,7 @@ class QueryApiTests(unittest.TestCase):
         query_response = self.client.post(
             "/query",
             json={"query": "What VAT applies to consulting in Norway?", "filters": {"country": "NO"}},
+            headers=self.headers,
         )
         payload = query_response.json()
         self.assertEqual(query_response.status_code, 200)
@@ -57,7 +62,7 @@ class QueryApiTests(unittest.TestCase):
         self.assertEqual(payload["trace"]["retrieval_count"], 1)
         self.assertEqual(payload["trace"]["retrieval_mode"], "python_fallback")
 
-        document_response = self.client.get(f"/documents/{document_id}")
+        document_response = self.client.get(f"/documents/{document_id}", headers=self.headers)
         document_payload = document_response.json()
         self.assertEqual(document_response.status_code, 200)
         self.assertEqual(document_payload["status"], "indexed")
@@ -72,6 +77,7 @@ class QueryApiTests(unittest.TestCase):
                 "metadata": {"type": "travel_catalog", "language": "it"},
                 "source_name": "travel-catalog",
             },
+            headers=self.headers,
         )
         self.assertEqual(ingest_response.status_code, 201)
         document_id = ingest_response.json()["document_id"]
@@ -85,12 +91,14 @@ class QueryApiTests(unittest.TestCase):
                 "chunk_size": 512,
                 "overlap_tokens": 64,
             },
+            headers=self.headers,
         )
         self.assertEqual(reindex_response.status_code, 202)
 
         query_response = self.client.post(
             "/query",
             json={"query": "Which destinations are in the travel catalog?", "filters": {"category": "travel_catalog"}},
+            headers=self.headers,
         )
         payload = query_response.json()
         self.assertEqual(query_response.status_code, 200)
@@ -106,6 +114,7 @@ class QueryApiTests(unittest.TestCase):
             response = self.client.post(
                 "/query",
                 json={"query": "What is in the catalog?", "top_k": 5, "filters": {}},
+                headers=self.headers,
             )
 
         self.assertEqual(response.status_code, 500)
@@ -127,6 +136,7 @@ class QueryApiTests(unittest.TestCase):
             response = self.client.post(
                 "/query",
                 json={"query": "What is in the catalog?", "top_k": 5, "filters": {}},
+                headers=self.headers,
             )
 
         self.assertEqual(response.status_code, 502)

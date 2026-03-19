@@ -4,7 +4,7 @@ const quickLinks = [
   { path: "/ingestion", label: "Capture new source", icon: "upload" },
   { path: "/search", label: "Run a grounded query", icon: "search" },
   { path: "/documents", label: "Browse documents", icon: "docs" },
-  { path: "/jobs", label: "View pipeline jobs", icon: "jobs" },
+  { path: "/jobs", label: "View pipeline jobs", icon: "jobs", adminOnly: true },
 ];
 
 const quickIcons = {
@@ -36,11 +36,12 @@ const quickIcons = {
   ),
 };
 
-export function DashboardPage({ stats, documents, jobs }) {
+export function DashboardPage({ stats, documents, jobs, isAdmin }) {
   const navigate = useNavigate();
 
   const recentDocs = documents.slice(0, 4);
   const recentJobs = jobs.slice(0, 4);
+  const visibleQuickLinks = quickLinks.filter((link) => !link.adminOnly || isAdmin);
 
   return (
     <div className="page-stack">
@@ -64,7 +65,7 @@ export function DashboardPage({ stats, documents, jobs }) {
       </section>
 
       <div className="quick-links-grid">
-        {quickLinks.map((link) => (
+        {visibleQuickLinks.map((link) => (
           <button
             key={link.path}
             className="quick-link-card"
@@ -108,33 +109,35 @@ export function DashboardPage({ stats, documents, jobs }) {
           </div>
         </section>
 
-        <section className="card section-card">
-          <div className="section-head">
-            <div className="section-intro compact">
-              <p className="section-label">Pipeline</p>
-              <h2>Recent jobs</h2>
+        {isAdmin ? (
+          <section className="card section-card">
+            <div className="section-head">
+              <div className="section-intro compact">
+                <p className="section-label">Pipeline</p>
+                <h2>Recent jobs</h2>
+              </div>
+              <button className="ghost-button" onClick={() => navigate("/jobs")} type="button">
+                View all
+              </button>
             </div>
-            <button className="ghost-button" onClick={() => navigate("/jobs")} type="button">
-              View all
-            </button>
-          </div>
-          <div className="list">
-            {recentJobs.map((job) => (
-              <article key={job.id} className="list-item">
-                <div className="item-copy">
-                  <div className="item-title-row">
-                    <strong style={{ fontFamily: "var(--font-mono)", fontSize: "0.82rem", fontWeight: 500 }}>
-                      {job.id}
-                    </strong>
-                    <span className={`status-pill status-${job.status}`}>{job.status}</span>
+            <div className="list">
+              {recentJobs.map((job) => (
+                <article key={job.id} className="list-item">
+                  <div className="item-copy">
+                    <div className="item-title-row">
+                      <strong style={{ fontFamily: "var(--font-mono)", fontSize: "0.82rem", fontWeight: 500 }}>
+                        {job.id}
+                      </strong>
+                      <span className={`status-pill status-${job.status}`}>{job.status}</span>
+                    </div>
+                    <p className="item-meta">{job.job_type} &middot; v{job.document_version}</p>
                   </div>
-                  <p className="item-meta">{job.job_type} &middot; v{job.document_version}</p>
-                </div>
-              </article>
-            ))}
-            {recentJobs.length === 0 ? <p className="empty-state">No jobs yet.</p> : null}
-          </div>
-        </section>
+                </article>
+              ))}
+              {recentJobs.length === 0 ? <p className="empty-state">No jobs yet.</p> : null}
+            </div>
+          </section>
+        ) : null}
       </div>
     </div>
   );

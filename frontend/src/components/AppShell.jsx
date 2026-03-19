@@ -51,8 +51,10 @@ function navClass({ isActive }) {
   return `nav-link${isActive ? " nav-link-active" : ""}`;
 }
 
-export function AppShell({ children }) {
+export function AppShell({ children, currentUser, onLogout }) {
   const navigate = useNavigate();
+  const isAdmin = currentUser?.role === "admin";
+  const visibleNavItems = navItems.filter((item) => !item.adminOnly || isAdmin);
 
   return (
     <div className="page">
@@ -68,7 +70,7 @@ export function AppShell({ children }) {
             <p>Internal retrieval, ingestion, and operational visibility in one workspace.</p>
           </div>
           <nav className="sidebar-nav" aria-label="Primary">
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <NavLink
                 key={item.path}
                 to={item.path}
@@ -79,6 +81,17 @@ export function AppShell({ children }) {
               </NavLink>
             ))}
           </nav>
+          {currentUser ? (
+            <div className="sidebar-user">
+              <div className="sidebar-user-copy">
+                <strong>{currentUser.email}</strong>
+                <span>{currentUser.role}</span>
+              </div>
+              <button className="ghost-button" onClick={onLogout} type="button">
+                Sign out
+              </button>
+            </div>
+          ) : null}
         </aside>
 
         <div className="app-content">{children}</div>

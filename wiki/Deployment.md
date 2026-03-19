@@ -68,6 +68,10 @@ POSTGRES_DB=rag_system
 POSTGRES_USER=backofficeai
 POSTGRES_PASSWORD=change-this-password
 DATABASE_URL=postgresql+psycopg://backofficeai:change-this-password@db:5432/rag_system
+AUTH_SECRET_KEY=change-this-auth-secret
+INITIAL_ADMIN_EMAIL=admin@example.com
+INITIAL_ADMIN_PASSWORD=change-this-admin-password
+ACCESS_TOKEN_TTL_MINUTES=480
 EMBEDDING_PROVIDER=mock
 GENERATION_PROVIDER=mock
 OPENAI_API_KEY=
@@ -101,12 +105,15 @@ GENERATION_MODEL=gpt-5-mini
 Important:
 
 - the API key stays server-side only
+- `AUTH_SECRET_KEY` must be a strong random secret used to sign access tokens
+- `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD` seed the first admin account on startup
 - the frontend never needs the OpenAI key
 - change `POSTGRES_PASSWORD` before first deployment
 - set `TRUSTED_HOSTS` to the exact hostnames or LAN IPs users will use to access the API
 - set `CORS_ORIGINS` to the exact frontend origins users will open in the browser
 - keep `CORS_ORIGIN_REGEX` empty unless you have a deliberate development-only reason to widen origin matching
 - keep `CORS_ALLOW_CREDENTIALS=false` until a real auth/session model is introduced
+- CORS remains header-based; the frontend sends bearer tokens to the API
 - API docs are disabled by default in this hardened setup; enable them only when needed
 - oversize ingest requests now fail with `413`; tune the `MAX_*_BYTES` values only if your document policy requires it
 
